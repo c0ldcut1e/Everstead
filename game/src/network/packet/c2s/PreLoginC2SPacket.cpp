@@ -1,5 +1,7 @@
 #include "PreLoginC2SPacket.h"
 
+#include <algorithm>
+
 #include "../../listener/PacketListener.h"
 
 PreLoginC2SPacket::PreLoginC2SPacket()
@@ -11,13 +13,15 @@ PreLoginC2SPacket::PreLoginC2SPacket()
     m_versionPatch = 0;
 }
 
-PreLoginC2SPacket::PreLoginC2SPacket(Pid pid, const std::string &username, uint16_t versionMajor, uint16_t versionMinor, uint16_t versionPatch)
+PreLoginC2SPacket::PreLoginC2SPacket(Pid pid, const std::string &username, uint16_t versionMajor, uint16_t versionMinor, uint16_t versionPatch,
+                                     const std::vector<ModLoader::SharedMod> &mods)
 {
     m_pid          = pid;
     m_username     = username;
     m_versionMajor = versionMajor;
     m_versionMinor = versionMinor;
     m_versionPatch = versionPatch;
+    m_mods         = mods;
 }
 
 PreLoginC2SPacket::~PreLoginC2SPacket()
@@ -35,6 +39,16 @@ void PreLoginC2SPacket::Read(DataInputStream *inputStream)
     m_versionMajor = inputStream->ReadShort();
     m_versionMinor = inputStream->ReadShort();
     m_versionPatch = inputStream->ReadShort();
+
+    // We cap the count because every entry allocates whatever string length the client claims
+    constexpr uint16_t kMaxMods = 256;
+    uint16_t count              = std::min(inputStream->ReadShort(), kMaxMods);
+    m_mods.resize(count);
+    for (size_t i = 0; i < m_mods.size(); i++)
+    {
+        m_mods[i].id      = inputStream->ReadString();
+        m_mods[i].version = inputStream->ReadString();
+    }
 }
 
 void PreLoginC2SPacket::Write(DataOutputStream *outputStream)
@@ -44,6 +58,12 @@ void PreLoginC2SPacket::Write(DataOutputStream *outputStream)
     outputStream->WriteShort(m_versionMajor);
     outputStream->WriteShort(m_versionMinor);
     outputStream->WriteShort(m_versionPatch);
+    outputStream->WriteShort((uint16_t) m_mods.size());
+    for (size_t i = 0; i < m_mods.size(); i++)
+    {
+        outputStream->WriteString(m_mods[i].id);
+        outputStream->WriteString(m_mods[i].version);
+    }
 }
 
 void PreLoginC2SPacket::Handle(PacketListener *listener)
@@ -53,7 +73,13 @@ void PreLoginC2SPacket::Handle(PacketListener *listener)
 
 int PreLoginC2SPacket::GetEstimatedSize()
 {
-    return 12 + (int) m_username.size();
+    int size = 14 + (int) m_username.size();
+    for (size_t i = 0; i < m_mods.size(); i++)
+    {
+        size += 4 + (int) (m_mods[i].id.size() + m_mods[i].version.size());
+    }
+
+    return size;
 }
 
 uint32_t PreLoginC2SPacket::GetPid() const
@@ -79,4 +105,9 @@ uint16_t PreLoginC2SPacket::GetVersionMinor() const
 uint16_t PreLoginC2SPacket::GetVersionPatch() const
 {
     return m_versionPatch;
+}
+
+const std::vector<ModLoader::SharedMod> &PreLoginC2SPacket::GetMods() const
+{
+    return m_mods;
 }

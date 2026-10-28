@@ -258,7 +258,8 @@ void ClientConnection::BeginLogin(Pid pid, const std::string &username, const Un
     m_uniqueID = uniqueID;
     Logger::LogInfo("Client connection begin login connection=%s pid=%u username=%s uid=%s", m_connection->GetName().c_str(), m_pid,
                     m_username.c_str(), m_uniqueID.ToString().c_str());
-    m_connection->Send(std::shared_ptr<Packet>(new PreLoginC2SPacket(m_pid, m_username, g_gameVersionMajor, g_gameVersionMinor, g_gameVersionPatch)));
+    m_connection->Send(std::shared_ptr<Packet>(new PreLoginC2SPacket(m_pid, m_username, g_gameVersionMajor, g_gameVersionMinor, g_gameVersionPatch,
+                                                                     ModLoader::GetInstance()->GetSharedMods())));
     m_connection->Send(std::shared_ptr<Packet>(new LoginC2SPacket(m_pid, m_username, m_uniqueID)));
 }
 

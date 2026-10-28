@@ -1677,6 +1677,21 @@ void Everstead::ShowDisconnectReason(eDISCONNECT_REASON reason, const std::wstri
     {
         dialog.message = text;
     }
+    else if (reason == eDisconnectReason_ModMismatch)
+    {
+        size_t split         = text.find(L'\n');
+        std::wstring missing = text.substr(0, split);
+        std::wstring extra   = split == std::wstring::npos ? L"" : text.substr(split + 1);
+        if (!missing.empty())
+        {
+            dialog.message += L"\n" + GetString("disconnect.mods_missing") + L" " + missing;
+        }
+
+        if (!extra.empty())
+        {
+            dialog.message += L"\n" + GetString("disconnect.mods_extra") + L" " + extra;
+        }
+    }
 
     UIScene_ModalDialog::Button button;
     button.label = GetString("button.ok");

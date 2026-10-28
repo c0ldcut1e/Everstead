@@ -49,6 +49,8 @@ docker compose up --build
 
 Set `EVERSTEAD_PUBLIC_HOST` to the address clients should reach the server at. `docker-compose.production.yml` holds the production setup.
 
+The game talks to the backend over HTTPS by default. To use a local backend, start the game with `--server http://127.0.0.1:8088`.
+
 ## Modding
 
 Mods are written in Lua and loaded from the `mods` folder in the game's data directory:
@@ -66,9 +68,20 @@ Each mod is a folder with a `mod.json` and a `main.lua`:
     "id": "example",
     "name": "Example Mod",
     "version": "1.0.0",
-    "gameVersions": ["0.2"]
+    "gameVersions": ["0.2"],
+    "side": "both"
 }
 ```
+
+`side` decides who needs the mod when playing together:
+
+| Side | Meaning |
+| --- | --- |
+| `both` | The default. Players can only join a world or server that runs the same mods at the same versions |
+| `client` | Only runs in the game, for things like rendering or UI. Servers skip it and nobody else needs it |
+| `server` | Only matters where the world runs. Players can join without it |
+
+Dedicated servers load mods from a `mods` folder next to their `server.json`. A `both` mod can check `DedicatedServer ~= nil` to tell when it runs there, since client classes don't exist on a dedicated server.
 
 Mods hook game functions by name and call game classes directly from Lua:
 

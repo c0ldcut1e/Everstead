@@ -9,6 +9,10 @@
 ---@type ModInfo
 mod = {}
 
+---Only exists when the mod runs on a dedicated server
+---@type table?
+DedicatedServer = nil
+
 log = {}
 
 ---@param ... any

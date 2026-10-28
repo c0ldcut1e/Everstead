@@ -49,6 +49,7 @@ services:
       EVERSTEAD_LISTEN_ADDRESS: ":8088"
       EVERSTEAD_RENDEZVOUS_ADDRESS: ":37373"
       EVERSTEAD_PUBLIC_HOST: "${EVERSTEAD_PUBLIC_HOST:-127.0.0.1}"
+      EVERSTEAD_ADMIN_PASSWORD_HASH: "${EVERSTEAD_ADMIN_PASSWORD_HASH:-}"
       EVERSTEAD_MONGO_URI: "mongodb://everstead:everstead@mongo:27017/?authSource=admin"
       EVERSTEAD_MONGO_DATABASE: "everstead"
       EVERSTEAD_POSTGRES_URL: "postgres://everstead:everstead@postgres:5432/everstead?sslmode=disable"

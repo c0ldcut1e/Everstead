@@ -17,9 +17,6 @@ import (
 
 const adminUsername = "Admin"
 
-// This is the bcrypt hash of the built in admin password, which only applies when the account is first created
-const adminPasswordHash = "$2a$12$Bm3Wn5DxNRkd18I5BXimduq71HVoVY/LSd2TSYI6OeYGadpWThDwi"
-
 type LoginRecord struct {
 	Address   string
 	Succeeded bool
@@ -45,7 +42,12 @@ func (s *Store) ensureAdminAccount(ctx context.Context) error {
 	}
 
 	if existing == nil {
-		created, err := s.CreateAccount(ctx, adminUsername, "admin@everstead.invalid", adminPasswordHash)
+		// The hash only matters when the account is first created, after that the password is changed on the site
+		if s.config.AdminPasswordHash == "" {
+			return errors.New("EVERSTEAD_ADMIN_PASSWORD_HASH is required to create the admin account")
+		}
+
+		created, err := s.CreateAccount(ctx, adminUsername, "admin@everstead.invalid", s.config.AdminPasswordHash)
 		if err != nil {
 			return err
 		}

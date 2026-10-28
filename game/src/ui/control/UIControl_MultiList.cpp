@@ -1591,7 +1591,7 @@ void UIControl_MultiList::NormalizeSelectionState()
             m_selectedIndex = FindFirstSelectableEntry();
         }
     }
-    else
+    else if (!m_pointerOnly)
     {
         m_selectedIndex = FindFirstSelectableEntry();
     }
@@ -1669,7 +1669,11 @@ void UIControl_MultiList::UpdateSelectionFromMouse()
         }
     }
 
-    if (m_usingMouseSelection && hoveredIndex >= 0 && m_pointerActiveIndex < 0)
+    if (m_pointerOnly && m_pointerActiveIndex < 0)
+    {
+        m_selectedIndex = hoveredIndex;
+    }
+    else if (m_usingMouseSelection && hoveredIndex >= 0 && m_pointerActiveIndex < 0)
     {
         m_selectedIndex = hoveredIndex;
     }

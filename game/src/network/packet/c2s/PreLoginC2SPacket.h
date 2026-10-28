@@ -1,7 +1,9 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
+#include "../../../mod/ModLoader.h"
 #include "../../NetworkTypes.h"
 #include "../Packet.h"
 
@@ -9,7 +11,8 @@ class PreLoginC2SPacket : public Packet
 {
 public:
     PreLoginC2SPacket();
-    PreLoginC2SPacket(Pid pid, const std::string &username, uint16_t versionMajor, uint16_t versionMinor, uint16_t versionPatch);
+    PreLoginC2SPacket(Pid pid, const std::string &username, uint16_t versionMajor, uint16_t versionMinor, uint16_t versionPatch,
+                      const std::vector<ModLoader::SharedMod> &mods);
     ~PreLoginC2SPacket() override;
 
     ePACKET_ID GetId() override;
@@ -23,6 +26,7 @@ public:
     uint16_t GetVersionMajor() const;
     uint16_t GetVersionMinor() const;
     uint16_t GetVersionPatch() const;
+    const std::vector<ModLoader::SharedMod> &GetMods() const;
 
 private:
     Pid m_pid;
@@ -30,4 +34,5 @@ private:
     uint16_t m_versionMajor;
     uint16_t m_versionMinor;
     uint16_t m_versionPatch;
+    std::vector<ModLoader::SharedMod> m_mods;
 };

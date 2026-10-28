@@ -50,13 +50,12 @@ func (w *Website) discourseLogin(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 
-	// Discourse trusts this email and links existing forum users by it, which is safe because account emails are unique
 	response := url.Values{}
 	response.Set("nonce", values.Get("nonce"))
 	response.Set("external_id", strconv.FormatUint(uint64(account.Pid), 10))
 	response.Set("email", account.Email)
 	response.Set("username", account.Username)
-	response.Set("require_activation", "false")
+	response.Set("require_activation", "true")
 	response.Set("admin", strconv.FormatBool(account.Permission >= store.RoleAdmin))
 	response.Set("moderator", strconv.FormatBool(account.Permission >= store.RoleModerator))
 

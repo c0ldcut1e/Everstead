@@ -7,6 +7,7 @@
 #include "../core/CrashHandler.h"
 #include "../core/Logger.h"
 #include "../io/File.h"
+#include "../mod/ModLoader.h"
 #include "../platform/PlatformProcess.h"
 #include "DedicatedServer.h"
 #include "ServerAssets.h"
@@ -37,6 +38,7 @@ int main(int argc, char *argv[])
     }
 
     CrashHandler::Install(true);
+    ModLoader::GetInstance()->Load(configFile.GetParent().GetChild("mods"));
 
     std::signal(SIGINT, HandleSignal);
     std::signal(SIGTERM, HandleSignal);

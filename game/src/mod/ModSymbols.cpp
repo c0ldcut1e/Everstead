@@ -1,5 +1,3 @@
-#ifndef EVERSTEAD_DEDICATED_SERVER
-
 #include "ModSymbols.h"
 
 #include <cctype>
@@ -237,5 +235,3 @@ std::string ModSymbols::Normalize(const std::string &name) const
 
     return result;
 }
-
-#endif

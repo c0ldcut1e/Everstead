@@ -23,12 +23,21 @@ struct ModMethod
     size_t count;
 };
 
+struct ModField
+{
+    const char *name;
+    ModMethod get;
+    ModMethod set;
+};
+
 struct ModClass
 {
     const char *name;
     const char *bases;
     const ModMethod *methods;
     size_t count;
+    const ModField *fields;
+    size_t fieldCount;
     void (*destroy)(void *);
 };
 
@@ -388,5 +397,67 @@ struct ModConstruct
         ModMethod method      = ModSignature<C *, A...>::Describe("new", thunk, true);
         method.result.destroy = ModDestroyOf<C>();
         return method;
+    }
+};
+
+// Numbers and pointers are read by value, everything else is handed out by reference so mods edit the field itself
+template<typename T>
+using ModFieldValue = std::conditional_t<kModNumber<T> || std::is_pointer_v<T>, T, T &>;
+
+// We only assign numbers, pointers and strings since is_copy_assignable says yes to containers of move-only types
+template<typename T>
+constexpr bool kModAssignable =
+        std::is_copy_assignable_v<T> && (kModNumber<T> || std::is_pointer_v<T> || std::is_same_v<T, std::string> || std::is_same_v<T, std::wstring>);
+
+template<auto M, typename T = decltype(M)>
+struct ModFieldBind;
+
+template<auto M, typename T, typename C>
+struct ModFieldBind<M, T C::*>
+{
+    static ModAbi<ModFieldValue<T>> Get(void *self)
+    {
+        return ModResult<ModFieldValue<T>>::To(((C *) self)->*M);
+    }
+
+    static void Set(void *self, ModAbi<T> value)
+    {
+        ((C *) self)->*M = ModValue<T>::From(value);
+    }
+
+    static ModField Describe(const char *name)
+    {
+        ModMethod setter = ModSignature<void>::Describe(name, nullptr, false);
+        if constexpr (kModAssignable<T>)
+        {
+            setter = ModSignature<void, T>::Describe(name, (void *) Set, false);
+        }
+
+        return {name, ModSignature<ModFieldValue<T>>::Describe(name, (void *) Get, false), setter};
+    }
+};
+
+template<auto M, typename T>
+struct ModFieldBind<M, T *>
+{
+    static ModAbi<ModFieldValue<T>> Get()
+    {
+        return ModResult<ModFieldValue<T>>::To(*M);
+    }
+
+    static void Set(ModAbi<T> value)
+    {
+        *M = ModValue<T>::From(value);
+    }
+
+    static ModField Describe(const char *name)
+    {
+        ModMethod setter = ModSignature<void>::Describe(name, nullptr, true);
+        if constexpr (kModAssignable<T>)
+        {
+            setter = ModSignature<void, T>::Describe(name, (void *) Set, true);
+        }
+
+        return {name, ModSignature<ModFieldValue<T>>::Describe(name, (void *) Get, true), setter};
     }
 };

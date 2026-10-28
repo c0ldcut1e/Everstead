@@ -2,5 +2,6 @@
     "id": "example",
     "name": "Example Mod",
     "version": "1.0.0",
+    "side": "both",
     "gameVersions": ["0.2"]
 }

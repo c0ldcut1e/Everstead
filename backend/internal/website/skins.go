@@ -26,19 +26,19 @@ func readTexture(request *http.Request, field string, sizes []image.Point) (stri
 
 	defer file.Close()
 
-	decoded, err := png.Decode(io.LimitReader(file, maxTextureBytes))
+	data, err := io.ReadAll(io.LimitReader(file, maxTextureBytes))
 	if err != nil {
 		return "", nil, false
 	}
 
-	valid := false
-	for _, size := range sizes {
-		if decoded.Bounds().Size() == size {
-			valid = true
-		}
+	// The decoder allocates whatever size the header claims, so we check it before decoding
+	header, err := png.DecodeConfig(bytes.NewReader(data))
+	if err != nil || !slices.Contains(sizes, image.Pt(header.Width, header.Height)) {
+		return "", nil, false
 	}
 
-	if !valid {
+	decoded, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
 		return "", nil, false
 	}
 

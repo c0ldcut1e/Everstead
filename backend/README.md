@@ -47,6 +47,7 @@ Every setting is read from the environment.
 | `EVERSTEAD_POSTGRES_URL` | `postgres://everstead:everstead@127.0.0.1:5432/everstead?sslmode=disable` |
 | `EVERSTEAD_DISCOURSE_URL` | `https://forum.plasnet.org` |
 | `EVERSTEAD_DISCOURSE_SECRET` | empty |
+| `EVERSTEAD_ADMIN_PASSWORD_HASH` | empty |
 | `EVERSTEAD_ACCESS_TOKEN_TTL` | `1h` |
 | `EVERSTEAD_REFRESH_TOKEN_TTL` | `720h` |
 | `EVERSTEAD_SESSION_TTL` | `2m` |
@@ -55,7 +56,7 @@ Every setting is read from the environment.
 | `EVERSTEAD_FRIEND_REQUEST_TTL` | `720h` |
 | `EVERSTEAD_MAX_REQUEST_BYTES` | `1048576` |
 
-`EVERSTEAD_PUBLIC_HOST` is the address clients use to reach the rendezvous, so it has to be the server's public address in production. Durations use Go's duration format, for example `30m` or `24h`.
+`EVERSTEAD_PUBLIC_HOST` is the address clients use to reach the rendezvous, so it has to be the server's public address in production. `EVERSTEAD_ADMIN_PASSWORD_HASH` is the bcrypt hash of the built in `Admin` account's password and is required the first time the backend starts. Durations use Go's duration format, for example `30m` or `24h`.
 
 ## API
 

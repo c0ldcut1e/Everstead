@@ -4,6 +4,8 @@
 
 #include "../../core/GameInfo.h"
 #include "../../core/Logger.h"
+#include "../../mod/ModLoader.h"
+#include "../../utils/StringUtils.h"
 #include "../Connection.h"
 #include "../packet/Packet.h"
 #include "../packet/c2s/LoginC2SPacket.h"
@@ -49,7 +51,7 @@ void PendingConnection::Tick()
     }
 }
 
-void PendingConnection::Disconnect(eDISCONNECT_REASON reason)
+void PendingConnection::Disconnect(eDISCONNECT_REASON reason, const std::wstring &text)
 {
     if (m_disconnected)
     {
@@ -59,9 +61,17 @@ void PendingConnection::Disconnect(eDISCONNECT_REASON reason)
     m_disconnected = true;
     Logger::LogInfo("Pending connection rejected connection=%s pid=%u reason=%s", m_connection->GetName().c_str(), m_pid,
                     DisconnectS2CPacket::GetReasonKey(reason).c_str());
-    wchar_t version[32];
-    swprintf(version, 32, L"%u.%u.%u", g_gameVersionMajor, g_gameVersionMinor, g_gameVersionPatch);
-    Send(std::shared_ptr<Packet>(new DisconnectS2CPacket(reason, version)));
+    if (reason == eDisconnectReason_OlderVersion || reason == eDisconnectReason_NewerVersion)
+    {
+        wchar_t version[32];
+        swprintf(version, 32, L"%u.%u.%u", g_gameVersionMajor, g_gameVersionMinor, g_gameVersionPatch);
+        Send(std::shared_ptr<Packet>(new DisconnectS2CPacket(reason, version)));
+    }
+    else
+    {
+        Send(std::shared_ptr<Packet>(new DisconnectS2CPacket(reason, text)));
+    }
+
     m_connection->CloseAfterFlush(reason);
 }
 
@@ -106,6 +116,45 @@ void PendingConnection::HandlePreLogin(PreLoginC2SPacket *packet)
         Logger::LogInfo("Pending connection pid mismatch connection=%s expected=%u received=%u", m_connection->GetName().c_str(), m_pid,
                         packet->GetPid());
         Disconnect(eDisconnectReason_UnexpectedPacket);
+        return;
+    }
+
+    // The text lists the mods this side has that the client is missing, then a line with the ones only the client has
+    std::vector<ModLoader::SharedMod> mods              = ModLoader::GetInstance()->GetSharedMods();
+    const std::vector<ModLoader::SharedMod> &clientMods = packet->GetMods();
+    std::wstring missing;
+    std::wstring extra;
+    for (size_t i = 0; i < mods.size(); i++)
+    {
+        bool found = false;
+        for (size_t j = 0; j < clientMods.size(); j++)
+        {
+            found |= clientMods[j].id == mods[i].id && clientMods[j].version == mods[i].version;
+        }
+
+        if (!found)
+        {
+            missing += (missing.empty() ? L"" : L", ") + StringUtils::ToUtf16(mods[i].id + " " + mods[i].version);
+        }
+    }
+
+    for (size_t i = 0; i < clientMods.size(); i++)
+    {
+        bool found = false;
+        for (size_t j = 0; j < mods.size(); j++)
+        {
+            found |= mods[j].id == clientMods[i].id && mods[j].version == clientMods[i].version;
+        }
+
+        if (!found)
+        {
+            extra += (extra.empty() ? L"" : L", ") + StringUtils::ToUtf16(clientMods[i].id + " " + clientMods[i].version);
+        }
+    }
+
+    if (!missing.empty() || !extra.empty())
+    {
+        Disconnect(eDisconnectReason_ModMismatch, missing + L"\n" + extra);
         return;
     }
 

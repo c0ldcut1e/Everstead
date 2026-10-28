@@ -16,19 +16,34 @@
 class ModLoader
 {
 public:
+    struct SharedMod
+    {
+        std::string id;
+        std::string version;
+    };
+
     static ModLoader *GetInstance();
 
-    void Load();
+    void Load(const File &modsDirectory);
     std::vector<File> GetModDirectories() const;
+    std::vector<SharedMod> GetSharedMods() const;
     void *Resolve(ModHook *hook);
 
 private:
+    enum class Side
+    {
+        Both,
+        Client,
+        Server
+    };
+
     struct Mod
     {
         std::string id;
         std::string name;
         std::string version;
         std::vector<std::string> dependencies;
+        Side side;
         File directory;
         bool loaded;
     };
@@ -69,6 +84,7 @@ private:
     static int LuaFreeWideString(lua_State *state);
     static int LuaReadWideString(lua_State *state);
     static int LuaClass(lua_State *state);
+    static void PushMethod(lua_State *state, const ModMethod &method);
     static void PushParam(lua_State *state, const ModParam &param);
 
     std::vector<Mod> m_mods;

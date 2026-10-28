@@ -5,20 +5,63 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
+
+#ifdef _WIN32
+#include <windows.h>
+
+#include <wincrypt.h>
+#endif
 
 #include "../platform/PlatformSockets.h"
 
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/net_sockets.h>
+#include <psa/crypto.h>
+
 const char *ApiClient::s_apiVersion  = "/v1";
-const char *ApiClient::s_defaultHost = "5.182.204.36";
+const char *ApiClient::s_defaultHost = "everstead.plasnet.org";
 std::string ApiClient::s_serverOverride;
 
 static const uint64_t s_fnvOffsetBasis = 0xcbf29ce484222325;
 static const uint64_t s_fnvPrime       = 0x100000001b3;
 
+static std::once_flag s_psaInitFlag;
+
+struct TlsSession
+{
+    mbedtls_entropy_context entropy;
+    mbedtls_ctr_drbg_context ctrDrbg;
+    mbedtls_ssl_config config;
+    mbedtls_ssl_context ssl;
+    mbedtls_net_context net;
+
+    TlsSession()
+    {
+        mbedtls_entropy_init(&entropy);
+        mbedtls_ctr_drbg_init(&ctrDrbg);
+        mbedtls_ssl_config_init(&config);
+        mbedtls_ssl_init(&ssl);
+        mbedtls_net_init(&net);
+    }
+
+    // The socket is closed by the caller, so we never free net here
+    ~TlsSession()
+    {
+        mbedtls_ssl_free(&ssl);
+        mbedtls_ssl_config_free(&config);
+        mbedtls_ctr_drbg_free(&ctrDrbg);
+        mbedtls_entropy_free(&entropy);
+    }
+};
+
 ApiClient::ApiClient()
 {
-    m_host = s_defaultHost;
-    m_port = s_defaultPort;
+    m_host   = s_defaultHost;
+    m_port   = s_defaultPort;
+    m_secure = true;
+    mbedtls_x509_crt_init(&m_caChain);
 
     const char *server = getenv("EVERSTEAD_SERVER");
     if (!s_serverOverride.empty())
@@ -30,11 +73,15 @@ ApiClient::ApiClient()
         ApplyServerAddress(server);
     }
 
+    std::call_once(s_psaInitFlag, psa_crypto_init);
+    LoadCaChain();
     GenerateInstallId();
 }
 
 ApiClient::~ApiClient()
-{}
+{
+    mbedtls_x509_crt_free(&m_caChain);
+}
 
 void ApiClient::SetServerOverride(const std::string &server)
 {
@@ -43,15 +90,52 @@ void ApiClient::SetServerOverride(const std::string &server)
 
 void ApiClient::ApplyServerAddress(const std::string &server)
 {
-    size_t portColumn = server.rfind(':');
+    std::string address = server;
+    if (address.starts_with("http://"))
+    {
+        m_secure = false;
+        m_port   = 80;
+        address  = address.substr(7);
+    }
+    else if (address.starts_with("https://"))
+    {
+        address = address.substr(8);
+    }
+
+    size_t portColumn = address.rfind(':');
     if (portColumn == std::string::npos)
     {
-        m_host = server;
+        m_host = address;
         return;
     }
 
-    m_host = server.substr(0, portColumn);
-    m_port = atoi(server.c_str() + portColumn + 1);
+    m_host = address.substr(0, portColumn);
+    m_port = atoi(address.c_str() + portColumn + 1);
+}
+
+void ApiClient::LoadCaChain()
+{
+#ifdef _WIN32
+    HCERTSTORE store           = CertOpenSystemStoreW(0, L"ROOT");
+    PCCERT_CONTEXT certificate = nullptr;
+    while ((certificate = CertEnumCertificatesInStore(store, certificate)))
+    {
+        mbedtls_x509_crt_parse_der(&m_caChain, certificate->pbCertEncoded, certificate->cbCertEncoded);
+    }
+
+    CertCloseStore(store, 0);
+#else
+    // Every distro keeps its CA bundle in a different place
+    const char *const bundlePaths[] = {"/etc/ssl/certs/ca-certificates.crt", "/etc/pki/tls/certs/ca-bundle.crt", "/etc/ssl/ca-bundle.pem",
+                                       "/etc/ssl/cert.pem"};
+    for (size_t i = 0; i < sizeof(bundlePaths) / sizeof(bundlePaths[0]); i++)
+    {
+        if (mbedtls_x509_crt_parse_file(&m_caChain, bundlePaths[i]) >= 0)
+        {
+            return;
+        }
+    }
+#endif
 }
 
 void ApiClient::SetHost(const std::string &host, int port)
@@ -123,6 +207,39 @@ NetworkResult ApiClient::Request(const char *method, const std::string &path, co
         return connectResult;
     }
 
+    TlsSession tls;
+    mbedtls_ssl_context *ssl = nullptr;
+    if (m_secure)
+    {
+        tls.net.fd = (int) socketHandle;
+        if (mbedtls_ctr_drbg_seed(&tls.ctrDrbg, mbedtls_entropy_func, &tls.entropy, nullptr, 0) != 0 ||
+            mbedtls_ssl_config_defaults(&tls.config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT) != 0)
+        {
+            PlatformNet::Close(socketHandle);
+            return NetworkResult(eErrorGroup_Client, eClientError_Connect);
+        }
+
+        mbedtls_ssl_conf_authmode(&tls.config, MBEDTLS_SSL_VERIFY_REQUIRED);
+        mbedtls_ssl_conf_ca_chain(&tls.config, &m_caChain, nullptr);
+        mbedtls_ssl_conf_rng(&tls.config, mbedtls_ctr_drbg_random, &tls.ctrDrbg);
+        // TLS 1.3 goes through the global PSA key store, which is not thread safe without MBEDTLS_THREADING_C
+        mbedtls_ssl_conf_max_tls_version(&tls.config, MBEDTLS_SSL_VERSION_TLS1_2);
+        if (mbedtls_ssl_setup(&tls.ssl, &tls.config) != 0 || mbedtls_ssl_set_hostname(&tls.ssl, m_host.c_str()) != 0)
+        {
+            PlatformNet::Close(socketHandle);
+            return NetworkResult(eErrorGroup_Client, eClientError_Connect);
+        }
+
+        mbedtls_ssl_set_bio(&tls.ssl, &tls.net, mbedtls_net_send, mbedtls_net_recv, nullptr);
+        if (mbedtls_ssl_handshake(&tls.ssl) != 0)
+        {
+            PlatformNet::Close(socketHandle);
+            return NetworkResult(eErrorGroup_Client, eClientError_Connect);
+        }
+
+        ssl = &tls.ssl;
+    }
+
     std::string accessToken = GetAccessToken();
     std::string request;
     request += method;
@@ -151,14 +268,14 @@ NetworkResult ApiClient::Request(const char *method, const std::string &path, co
     request += "Connection: close\r\n\r\n";
     request += body;
 
-    if (!SendAll(socketHandle, request))
+    if (!SendAll(socketHandle, ssl, request))
     {
         PlatformNet::Close(socketHandle);
         return NetworkResult(eErrorGroup_Client, eClientError_Connect);
     }
 
     std::string raw;
-    bool received = ReceiveAll(socketHandle, &raw);
+    bool received = ReceiveAll(socketHandle, ssl, &raw);
     PlatformNet::Close(socketHandle);
     if (!received)
     {
@@ -270,12 +387,13 @@ NetworkResult ApiClient::Connect(PlatformNet::Handle *socketOutPtr)
     return NetworkResult();
 }
 
-bool ApiClient::SendAll(PlatformNet::Handle socketHandle, const std::string &data)
+bool ApiClient::SendAll(PlatformNet::Handle socketHandle, mbedtls_ssl_context *ssl, const std::string &data)
 {
     size_t sent = 0;
     while (sent < data.size())
     {
-        int64_t written = send(socketHandle, data.data() + sent, data.size() - sent, 0);
+        int64_t written = ssl ? mbedtls_ssl_write(ssl, (const unsigned char *) data.data() + sent, data.size() - sent)
+                              : send(socketHandle, data.data() + sent, data.size() - sent, 0);
         if (written <= 0)
         {
             return false;
@@ -287,19 +405,19 @@ bool ApiClient::SendAll(PlatformNet::Handle socketHandle, const std::string &dat
     return true;
 }
 
-bool ApiClient::ReceiveAll(PlatformNet::Handle socketHandle, std::string *outPtr)
+bool ApiClient::ReceiveAll(PlatformNet::Handle socketHandle, mbedtls_ssl_context *ssl, std::string *outPtr)
 {
     char buffer[4096];
     while (outPtr->size() < s_maxResponseBytes)
     {
-        int64_t got = recv(socketHandle, buffer, sizeof(buffer), 0);
+        int64_t got = ssl ? mbedtls_ssl_read(ssl, (unsigned char *) buffer, sizeof(buffer)) : recv(socketHandle, buffer, sizeof(buffer), 0);
         if (got > 0)
         {
             outPtr->append(buffer, (size_t) got);
             continue;
         }
 
-        return got == 0;
+        return got == 0 || got == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY;
     }
 
     return true;

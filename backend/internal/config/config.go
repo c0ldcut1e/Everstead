@@ -15,6 +15,8 @@ type Config struct {
 	DiscourseURL    string
 	DiscourseSecret string
 
+	AdminPasswordHash string
+
 	MongoURI      string
 	MongoDatabase string
 	PostgresURL   string
@@ -38,6 +40,8 @@ func Load() Config {
 
 		DiscourseURL:    text("EVERSTEAD_DISCOURSE_URL", "https://forum.plasnet.org"),
 		DiscourseSecret: os.Getenv("EVERSTEAD_DISCOURSE_SECRET"),
+
+		AdminPasswordHash: os.Getenv("EVERSTEAD_ADMIN_PASSWORD_HASH"),
 
 		MongoURI:      text("EVERSTEAD_MONGO_URI", "mongodb://127.0.0.1:27017"),
 		MongoDatabase: text("EVERSTEAD_MONGO_DATABASE", "everstead"),

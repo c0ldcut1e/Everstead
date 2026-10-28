@@ -1,12 +1,9 @@
-#ifndef EVERSTEAD_DEDICATED_SERVER
-
 #include "ModLoader.h"
 
 #include <cstring>
 
 #include "../core/GameInfo.h"
 #include "../core/Logger.h"
-#include "../io/FileSystem.h"
 #include "../utils/StringUtils.h"
 
 #include <nlohmann/json.hpp>
@@ -40,9 +37,8 @@ ModLoader::ThreadState::~ThreadState()
     }
 }
 
-void ModLoader::Load()
+void ModLoader::Load(const File &modsDirectory)
 {
-    File modsDirectory = FileSystem::GetUserDirectory().GetChild("mods");
     modsDirectory.CreateDirectories();
 
     std::vector<Mod> mods;
@@ -54,6 +50,14 @@ void ModLoader::Load()
         {
             continue;
         }
+
+#ifdef EVERSTEAD_DEDICATED_SERVER
+        if (mod.side == Side::Client)
+        {
+            Logger::LogInfo("Skipping %s because it only runs on clients", mod.id.c_str());
+            continue;
+        }
+#endif
 
         bool duplicate = false;
         for (size_t j = 0; j < mods.size(); j++)
@@ -123,6 +127,20 @@ std::vector<File> ModLoader::GetModDirectories() const
     return directories;
 }
 
+std::vector<ModLoader::SharedMod> ModLoader::GetSharedMods() const
+{
+    std::vector<SharedMod> mods;
+    for (size_t i = 0; i < m_mods.size(); i++)
+    {
+        if (m_mods[i].loaded && m_mods[i].side == Side::Both)
+        {
+            mods.push_back({m_mods[i].id, m_mods[i].version});
+        }
+    }
+
+    return mods;
+}
+
 void *ModLoader::Resolve(ModHook *hook)
 {
     // Hooked functions run unmodified while this thread is building its Lua state or after it was torn down
@@ -160,6 +178,7 @@ bool ModLoader::ReadManifest(const File &directory, Mod *mod)
     }
 
     std::vector<std::string> gameVersions;
+    std::string side;
     try
     {
         nlohmann::json json = nlohmann::json::parse(manifest.ReadAllText());
@@ -168,6 +187,7 @@ bool ModLoader::ReadManifest(const File &directory, Mod *mod)
         mod->version        = json.value("version", "0.0.0");
         mod->dependencies   = json.value("dependencies", std::vector<std::string>());
         gameVersions        = json.at("gameVersions").get<std::vector<std::string>>();
+        side                = json.value("side", "both");
     }
     catch (const nlohmann::json::exception &exception)
     {
@@ -178,6 +198,24 @@ bool ModLoader::ReadManifest(const File &directory, Mod *mod)
     if (mod->id.empty())
     {
         Logger::LogError("Skipping %s because its mod.json has an empty id", directory.GetPath().c_str());
+        return false;
+    }
+
+    if (side == "both")
+    {
+        mod->side = Side::Both;
+    }
+    else if (side == "client")
+    {
+        mod->side = Side::Client;
+    }
+    else if (side == "server")
+    {
+        mod->side = Side::Server;
+    }
+    else
+    {
+        Logger::LogError("Skipping %s because its side %s is not both, client or server", mod->id.c_str(), side.c_str());
         return false;
     }
 
@@ -445,7 +483,7 @@ end
 construct = function(class, ...)
     local overloads = class.data.methods.new
     if not overloads then
-        error(class.name .. " has no public constructor", 3)
+        error(class.name .. " has no constructor", 3)
     end
     return invoke(choose(overloads, class.name .. " constructor", true, ...), nil, ...)
 end
@@ -464,6 +502,20 @@ local function findMethod(class, name)
     end
 end
 
+local function findField(class, name)
+    local field = class.data.fields[name]
+    if field then
+        return field
+    end
+    for i = 1, #class.bases do
+        local base = loadClass(class.bases[i])
+        local found = base and findField(base, name)
+        if found then
+            return found
+        end
+    end
+end
+
 local function method(class, name, skipSelf)
     local cache = skipSelf and class.instanceMethods or class.staticMethods
     local dispatcher = cache[name]
@@ -473,7 +525,7 @@ local function method(class, name, skipSelf)
 
     local overloads = findMethod(class, name)
     if not overloads then
-        error(class.name .. " has no public method named " .. tostring(name), 2)
+        error(class.name .. " has no method or field named " .. tostring(name), 2)
     end
 
     local label = class.name .. "::" .. name
@@ -492,6 +544,16 @@ local function method(class, name, skipSelf)
     end
     cache[name] = dispatcher
     return dispatcher
+end
+
+local function setField(class, name, self, value)
+    local field = findField(class, name)
+    if not field or field.set.static ~= (self == nil) then
+        error(class.name .. " has no " .. (self and "" or "static ") .. "field named " .. tostring(name), 3)
+    elseif field.set.thunk == 0 then
+        error(class.name .. "::" .. name .. " can't be assigned", 3)
+    end
+    invoke(field.set, self, value)
 end
 
 loadClass = function(name)
@@ -513,13 +575,27 @@ loadClass = function(name)
         class.bases[#class.bases + 1] = base
     end
     ffi.metatype("struct " .. name, {
-        __index = function(_, key)
+        __index = function(self, key)
+            local field = findField(class, key)
+            if field and not field.get.static then
+                return invoke(field.get, self)
+            end
             return method(class, key, true)
+        end,
+        __newindex = function(self, key, value)
+            setField(class, key, self, value)
         end,
     })
     class.global = setmetatable({}, {
         __index = function(_, key)
+            local field = findField(class, key)
+            if field and field.get.static then
+                return invoke(field.get, nil)
+            end
             return method(class, key, false)
+        end,
+        __newindex = function(_, key, value)
+            setField(class, key, nil, value)
         end,
     })
     classes[name] = class
@@ -530,7 +606,8 @@ end
 local function hookSignature(target)
     local className, methodName = target:match("^([%w_]+)::([%w_]+)$")
     local class = className and loadClass(className)
-    local overloads = class and class.data.methods[methodName]
+    local constructor = className == methodName
+    local overloads = class and class.data.methods[constructor and "new" or methodName]
     if not overloads then
         error(target .. " is not a known method, so pass its signature", 3)
     elseif #overloads > 1 then
@@ -549,7 +626,7 @@ local function hookSignature(target)
 
     local types = {}
     local params = {}
-    if not overload.static then
+    if not overload.static or constructor then
         types[1] = "void*"
         params[1] = { kind = "o", type = className }
     end
@@ -557,7 +634,7 @@ local function hookSignature(target)
         types[#types + 1] = rawType(overload.params[i])
         params[#params + 1] = overload.params[i]
     end
-    return rawType(overload.result) .. "(" .. (#types > 0 and table.concat(types, ", ") or "void") .. ")", params
+    return (constructor and "void" or rawType(overload.result)) .. "(" .. (#types > 0 and table.concat(types, ", ") or "void") .. ")", params
 end
 
 local function typedArguments(params, ...)
@@ -961,32 +1038,50 @@ int ModLoader::LuaClass(lua_State *state)
                 lua_setfield(state, -3, method.name);
             }
 
-            lua_newtable(state);
-            lua_pushnumber(state, (lua_Number) (uintptr_t) method.thunk);
-            lua_setfield(state, -2, "thunk");
-            lua_pushboolean(state, method.isStatic);
-            lua_setfield(state, -2, "static");
-            lua_pushnumber(state, (lua_Number) method.count);
-            lua_setfield(state, -2, "count");
-            PushParam(state, method.result);
-            lua_setfield(state, -2, "result");
-            lua_newtable(state);
-            for (size_t k = 0; k < method.count; k++)
-            {
-                PushParam(state, method.params[k]);
-                lua_rawseti(state, -2, (int) k + 1);
-            }
-
-            lua_setfield(state, -2, "params");
+            PushMethod(state, method);
             lua_rawseti(state, -2, (int) lua_objlen(state, -2) + 1);
             lua_pop(state, 1);
         }
 
         lua_setfield(state, -2, "methods");
+        lua_newtable(state);
+        for (size_t j = 0; j < modClass.fieldCount; j++)
+        {
+            const ModField &field = modClass.fields[j];
+            lua_newtable(state);
+            PushMethod(state, field.get);
+            lua_setfield(state, -2, "get");
+            PushMethod(state, field.set);
+            lua_setfield(state, -2, "set");
+            lua_setfield(state, -2, field.name);
+        }
+
+        lua_setfield(state, -2, "fields");
         return 1;
     }
 
     return 0;
+}
+
+void ModLoader::PushMethod(lua_State *state, const ModMethod &method)
+{
+    lua_newtable(state);
+    lua_pushnumber(state, (lua_Number) (uintptr_t) method.thunk);
+    lua_setfield(state, -2, "thunk");
+    lua_pushboolean(state, method.isStatic);
+    lua_setfield(state, -2, "static");
+    lua_pushnumber(state, (lua_Number) method.count);
+    lua_setfield(state, -2, "count");
+    PushParam(state, method.result);
+    lua_setfield(state, -2, "result");
+    lua_newtable(state);
+    for (size_t i = 0; i < method.count; i++)
+    {
+        PushParam(state, method.params[i]);
+        lua_rawseti(state, -2, (int) i + 1);
+    }
+
+    lua_setfield(state, -2, "params");
 }
 
 void ModLoader::PushParam(lua_State *state, const ModParam &param)
@@ -1005,5 +1100,3 @@ void ModLoader::PushParam(lua_State *state, const ModParam &param)
     lua_pushboolean(state, param.reference);
     lua_setfield(state, -2, "reference");
 }
-
-#endif

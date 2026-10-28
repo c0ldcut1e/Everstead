@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    ModLoader::GetInstance()->Load();
+    ModLoader::GetInstance()->Load(FileSystem::GetUserDirectory().GetChild("mods"));
 
     try
     {

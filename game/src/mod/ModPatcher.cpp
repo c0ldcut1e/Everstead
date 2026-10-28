@@ -1,5 +1,3 @@
-#ifndef EVERSTEAD_DEDICATED_SERVER
-
 #include "ModPatcher.h"
 
 #include <cstring>
@@ -288,5 +286,3 @@ void ModPatcher::ProtectPool(bool writable)
     mprotect(m_pool, kPoolSize, writable ? PROT_READ | PROT_WRITE : PROT_READ | PROT_EXEC);
 #endif
 }
-
-#endif

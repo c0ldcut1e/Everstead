@@ -16,7 +16,7 @@ public:
     ~PendingConnection() override;
 
     void Tick();
-    void Disconnect(eDISCONNECT_REASON reason);
+    void Disconnect(eDISCONNECT_REASON reason, const std::wstring &text = L"");
     void Send(std::shared_ptr<Packet> packet);
 
     bool IsServerPacketListener() override;

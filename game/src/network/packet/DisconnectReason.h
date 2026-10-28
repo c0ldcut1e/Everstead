@@ -18,4 +18,5 @@ enum eDISCONNECT_REASON : uint8_t
     eDisconnectReason_SessionExpired   = 11,
     eDisconnectReason_Kicked           = 12,
     eDisconnectReason_NotWhitelisted   = 13,
+    eDisconnectReason_ModMismatch      = 14,
 };

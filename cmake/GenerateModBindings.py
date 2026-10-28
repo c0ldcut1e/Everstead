@@ -1,10 +1,12 @@
-# This only finds the names of public methods and constructors since ModBindings.h lets the compiler work out the types
+# This only finds the names of methods, constructors and fields since ModBindings.h lets the compiler work out the types
 import os
 import re
 import sys
 
-source_dir, output_file, stub_file = sys.argv[1], sys.argv[2], sys.argv[3]
-excluded = re.compile(r"^(server|ui/imgui|mod)/")
+source_dir, output_file = sys.argv[1], sys.argv[2]
+server = sys.argv[3] == "--server"
+stub_file = None if server else sys.argv[3]
+excluded = re.compile(r"^(ui/imgui|mod)/" if server else r"^(server|ui/imgui|mod)/")
 
 access_label = re.compile(r"^\s*(public|private|protected)\s*:(?!:)")
 class_head = re.compile(
@@ -12,7 +14,10 @@ class_head = re.compile(
 )
 nested_head = re.compile(r"^(enum(\s+class|\s+struct)?|class|struct|union)\s+(\w+)")
 alias_head = re.compile(r"^(using\s+(\w+)\s*=|typedef\s.*?(\w+)$)", re.S)
-definition = re.compile(r"^(?=[^\s#/])[^;]*?\b(\w+)(?:<[^>]*>)?::(~?\w+)\s*\([^;]*$", re.M)
+definition = re.compile(r"^(?=[^\s#/])[^;{}]*?\b(\w+)(?:<[^>]*>)?::(~?\w+)\s*\([^;{}]*$", re.M)
+static_definition = re.compile(r"^(?=[^\s#/])[^;(){}]*?\b(\w+)::(\w+)\s*(?:\[[^\]]*\]\s*)?[={;]", re.M)
+field_skip = re.compile(r"^(using|typedef|friend|template|static_assert|enum|class|struct|union|thread_local|extern)\b")
+server_guard = re.compile(r"#\s*(ifdef|ifndef|if\s*!?\s*defined)\s*\(?\s*EVERSTEAD_DEDICATED_SERVER\s*\)?\s*$")
 
 
 def strip_comments(text):
@@ -20,20 +25,29 @@ def strip_comments(text):
     return re.sub(r"//[^\n]*", "", text)
 
 
-def strip_conditionals(text):
-    # Anything inside #if blocks may not exist on this platform, so we leave it out entirely
+def strip_conditionals(text, keep_includes=False):
+    # We keep the side of the server guard this build compiles and drop every other #if block since it may not
+    # exist on this platform
     lines = []
-    depth = 0
+    stack = []
     for line in text.split("\n"):
         directive = line.strip()
         if directive.startswith("#"):
-            if re.match(r"#\s*if", directive):
-                depth += 1
-            elif re.match(r"#\s*endif", directive):
-                depth -= 1
-            lines.append("")
+            guard = server_guard.match(directive)
+            if guard:
+                stack.append([("!" in directive or guard.group(1) == "ifndef") != server, True])
+            elif re.match(r"#\s*if", directive):
+                stack.append([False, False])
+            elif re.match(r"#\s*else", directive) and stack and stack[-1][1]:
+                stack[-1][0] = not stack[-1][0]
+            elif re.match(r"#\s*elif", directive) and stack:
+                stack[-1] = [False, False]
+            elif re.match(r"#\s*endif", directive) and stack:
+                stack.pop()
+            include = keep_includes and re.match(r'#\s*include\s*"', directive)
+            lines.append(line if include and all(keep for keep, _ in stack) else "")
         else:
-            lines.append(line if depth == 0 else "")
+            lines.append(line if all(keep for keep, _ in stack) else "")
     return "\n".join(lines)
 
 
@@ -183,10 +197,63 @@ def parse_function(head, class_name):
     }
 
 
+def without_templates(text):
+    stripped = re.sub(r"<[^<>]*>", "", text)
+    while stripped != text:
+        text = stripped
+        stripped = re.sub(r"<[^<>]*>", "", text)
+    return text
+
+
+def strip_initializer(head):
+    depth = 0
+    for i, c in enumerate(head):
+        if c in "<([":
+            depth += 1
+        elif c in ">)]":
+            depth -= 1
+        elif c == "=" and depth == 0:
+            return head[:i].strip()
+    return head
+
+
+def parse_fields(declaration):
+    declaration = " ".join(re.sub(r"\[\[.*?\]\]", "", declaration).split())
+    if not declaration or field_skip.match(declaration) or re.search(r"(?<!:):(?!:)", declaration):
+        return []
+    parts = split_parameters(declaration)
+    first = re.match(r"^(.*?[\s*&>])(\w+)\s*(\[.*\])?$", parts[0])
+    if not first:
+        return []
+    words = first.group(1).split()
+    if "thread_local" in words:
+        return []
+    type_name = " ".join(word for word in words if word not in ("static", "inline", "constexpr", "mutable"))
+    fields = []
+    for i, part in enumerate(parts):
+        match = first if i == 0 else re.match(r"^([*&\s]*)(\w+)\s*(\[.*\])?$", part)
+        if not match:
+            continue
+        field_type = type_name if i == 0 else (type_name.rstrip("*& ") + " " + match.group(1).strip()).strip()
+        if "&" in field_type:
+            continue
+        fields.append(
+            {
+                "name": match.group(2),
+                "type": None if match.group(3) else field_type,
+                "static": "static" in words,
+                "inline": "constexpr" in words or "inline" in words,
+            }
+        )
+    return fields
+
+
 def parse_class(name, kind, body):
     access = "public" if kind == "struct" else "private"
     methods = []
+    fields = []
     nested = {}
+    destructor = False
     for head, member_body in statements(body):
         while True:
             label = access_label.match(head)
@@ -205,7 +272,12 @@ def parse_class(name, kind, body):
             nested[alias.group(2) or alias.group(3)] = access
             continue
 
-        if "(" not in head:
+        if "operator" not in head and "(" not in without_templates(strip_initializer(head)):
+            fields += parse_fields(strip_initializer(head))
+            continue
+
+        if re.match(r"^(virtual\s+)?~" + name + r"\s*\(", head):
+            destructor = member_body is None and not re.search(r"=\s*(default|delete)\s*$", head)
             continue
 
         function = parse_function(head, name)
@@ -213,7 +285,14 @@ def parse_class(name, kind, body):
             function["access"] = access
             function["inline"] = member_body is not None
             methods.append(function)
-    return {"name": name, "kind": kind, "methods": methods, "nested": nested}
+    return {
+        "name": name,
+        "kind": kind,
+        "methods": methods,
+        "fields": fields,
+        "nested": nested,
+        "destructor": destructor,
+    }
 
 
 def parameter_types(text, resolve, replacements):
@@ -255,11 +334,11 @@ def parameter_list(text, replacements):
     return pairs
 
 
-def read_source(path):
+def read_source(path, keep_includes=False):
     with open(
         os.path.join(source_dir, path), encoding="utf-8", errors="replace"
     ) as stream:
-        return strip_conditionals(strip_comments(stream.read()))
+        return strip_conditionals(strip_comments(stream.read()), keep_includes)
 
 
 sources = []
@@ -268,15 +347,31 @@ for root, _, files in os.walk(source_dir):
         path = os.path.relpath(os.path.join(root, file), source_dir).replace(
             os.sep, "/"
         )
-        if (path.endswith(".cpp") or path.endswith(".h")) and not path.startswith(
-            "server/"
-        ):
+        if (path.endswith(".cpp") or path.endswith(".h")) and (server or not path.startswith("server/")):
             sources.append(path)
 sources.sort()
 
+# Client headers aren't guarded and pull in SDL and OpenGL, so the server only binds headers its own sources include
+reachable = None
+if server:
+    reachable = set()
+    pending = [path for path in sources if path.endswith(".cpp")]
+    while pending:
+        path = pending.pop()
+        for include in re.findall(r'#\s*include\s*"([^"]+)"', read_source(path, True)):
+            header = os.path.normpath(os.path.join(os.path.dirname(path), include)).replace(os.sep, "/")
+            if header in sources and header not in reachable:
+                reachable.add(header)
+                pending.append(header)
+
 defined = set()
 for path in sources:
-    for match in definition.finditer(read_source(path)):
+    text = read_source(path)
+    for match in definition.finditer(text):
+        defined.add(match.group(1) + "::" + match.group(2))
+    for match in static_definition.finditer(text):
+        defined.add(match.group(1) + "::" + match.group(2))
+    for match in re.finditer(r"\b(\w+)::(~\w+)\s*\(\s*\)\s*=\s*default\s*;", text):
         defined.add(match.group(1) + "::" + match.group(2))
 
 builtins = {
@@ -316,7 +411,7 @@ templates = {}
 duplicates = set()
 class_headers = {}
 for header in sources:
-    if not header.endswith(".h") or excluded.match(header):
+    if not header.endswith(".h") or excluded.match(header) or (reachable is not None and header not in reachable):
         continue
     text = read_source(header)
     enums.update(re.findall(r"\benum(?:\s+class|\s+struct)?\s+(\w+)", text))
@@ -363,21 +458,17 @@ def base_name(base):
 
 
 def find_nested(class_name, name, seen):
-    """Returns (owner, accessible) for a nested type visible from class_name, or None."""
+    """Returns the class owning a nested type visible from class_name, or None."""
     parsed = classes.get(class_name) or templates.get(class_name)
     if not parsed or class_name in seen:
         return None
     seen.add(class_name)
     if name in parsed["nested"]:
-        return class_name, parsed["nested"][name] == "public"
+        return class_name
     for base in parsed["bases"]:
         found = find_nested(base_name(base), name, seen)
         if found:
-            public = base.startswith("public") or (
-                parsed["kind"] == "struct"
-                and not re.match(r"^(private|protected)\b", base)
-            )
-            return found[0], found[1] and public
+            return found
     return None
 
 
@@ -394,9 +485,7 @@ def resolver(class_name):
                 continue
             found = find_nested(class_name, identifier, set())
             if found:
-                if not found[1]:
-                    return None
-                result += found[0] + "::" + identifier
+                result += found + "::" + identifier
             elif identifier in global_types or type_name[
                 match.end() :
             ].lstrip().startswith("::"):
@@ -430,7 +519,7 @@ def describe(class_name, method, overloaded, replacements):
 
 
 def bindable(owner, method):
-    if method["constructor"] or method["access"] != "public" or method["deleted"]:
+    if method["constructor"] or method["deleted"]:
         return False
     return (
         method["inline"]
@@ -497,18 +586,20 @@ def stub(class_name, method, replacements):
     return stub_lines
 
 
-# Lua strings convert to any class with a public constructor taking one string
+# Lua strings convert to any class with a constructor taking one string
 from_string = set()
 for name, parsed in classes.items():
     for method in parsed["methods"]:
         pairs = parameter_list(method["parameters"], {})
         if (
             method["constructor"]
-            and method["access"] == "public"
             and len(pairs) == 1
             and lua_type(pairs[0][0], False) == "string"
         ):
             from_string.add(name)
+
+# Classes whose source is not compiled can still hold members whose destructors are missing
+defined_classes = {key.split("::")[0] for key in defined}
 
 entries = []
 stub_entries = []
@@ -527,7 +618,7 @@ for name in sorted(classes):
 
     constructors = [method for method in parsed["methods"] if method["constructor"]]
     for method in constructors:
-        if method["access"] != "public" or method["deleted"]:
+        if method["deleted"]:
             continue
         if (
             not method["inline"]
@@ -544,19 +635,22 @@ for name in sorted(classes):
     if not constructors:
         lines.append("ModConstruct<%s>::Describe()" % name)
 
+    fields = []
+    for field in parsed["fields"]:
+        if field["name"] in counts or (
+            field["static"] and not field["inline"] and name + "::" + field["name"] not in defined
+        ):
+            continue
+        fields.append(field)
+
     # We only follow the first base since a pointer to the object is only a valid pointer to that one
     bases = []
     if parsed["bases"]:
-        first = parsed["bases"][0]
-        public = first.startswith("public") or (
-            parsed["kind"] == "struct"
-            and not re.match(r"^(private|protected)\b", first)
-        )
-        base = re.sub(r"^((public|protected|private|virtual)\s+)*", "", first).strip()
+        base = re.sub(r"^((public|protected|private|virtual)\s+)*", "", parsed["bases"][0]).strip()
         template = re.match(r"^(\w+)\s*<(.*)>$", base)
-        if public and base in classes:
+        if base in classes:
             bases.append(base)
-        elif public and template and template.group(1) in templates:
+        elif template and template.group(1) in templates:
             parent = templates[template.group(1)]
             arguments = split_parameters(template.group(2))
             if len(arguments) == len(parent["parameters"]):
@@ -577,30 +671,50 @@ for name in sorted(classes):
                             stubs.append(stub(name, method, replacements))
 
     used_headers.add(class_headers[name])
-    entries.append((name, ",".join(bases), lines))
-    stub_entries.append((name, bases, stubs))
+    destroy = (
+        "nullptr"
+        if (parsed["destructor"] and name + "::~" + name not in defined)
+        or (
+            server
+            and name not in defined_classes
+            and any(not method["inline"] for method in parsed["methods"])
+        )
+        else "ModDestroyOf<%s>()" % name
+    )
+    entries.append((name, ",".join(bases), lines, fields, destroy))
+    stub_entries.append((name, bases, stubs, fields))
 
 output = ['#include "mod/ModBindings.h"', "", "#include <iterator>", ""]
 output += ['#include "%s"' % header for header in sorted(used_headers)]
 output.append("")
 output += [
     'template<> constexpr const char *kModName<%s> = "%s";' % (name, name)
-    for name, _, _ in entries
+    for name, _, _, _, _ in entries
 ]
 output.append("")
-for name, _, lines in entries:
+for name, _, lines, fields, _ in entries:
     if lines:
         output.append("static const ModMethod k%sMethods[] = {" % name)
         output += ["    %s," % line for line in lines]
         output.append("};")
+    if fields:
+        output.append("static const ModField k%sFields[] = {" % name)
+        output += [
+            '    ModFieldBind<&%s::%s>::Describe("%s"),' % (name, field["name"], field["name"])
+            for field in fields
+        ]
+        output.append("};")
 output.append("")
 output.append("const ModClass g_modClasses[] = {")
-for name, bases, lines in entries:
+for name, bases, lines, fields, destroy in entries:
     methods = (
         "k%sMethods, std::size(k%sMethods)" % (name, name) if lines else "nullptr, 0"
     )
+    field_list = (
+        "k%sFields, std::size(k%sFields)" % (name, name) if fields else "nullptr, 0"
+    )
     output.append(
-        '    {"%s", "%s", %s, ModDestroyOf<%s>()},' % (name, bases, methods, name)
+        '    {"%s", "%s", %s, %s, %s},' % (name, bases, methods, field_list, destroy)
     )
 output.append("};")
 output.append("")
@@ -616,8 +730,9 @@ if (
         stream.write(text)
 
 stub_output = ["---@meta", ""]
-for name, bases, stubs in stub_entries:
+for name, bases, stubs, fields in stub_entries:
     stub_output.append("---@class %s%s" % (name, " : " + bases[0] if bases else ""))
+    stub_output += ["---@field %s %s" % (field["name"], lua_type(field["type"], False)) for field in fields]
     stub_output.append("%s = {}" % name)
     stub_output.append("")
     for lines in stubs:
@@ -625,6 +740,8 @@ for name, bases, stubs in stub_entries:
         stub_output.append("")
 
 stub_text = "\n".join(stub_output)
+if server:
+    sys.exit()
 os.makedirs(os.path.dirname(stub_file), exist_ok=True)
 if not os.path.exists(stub_file) or open(stub_file, encoding="utf-8").read() != stub_text:
     with open(stub_file, "w", encoding="utf-8") as stream:

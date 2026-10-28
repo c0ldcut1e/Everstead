@@ -115,6 +115,10 @@ std::string DisconnectS2CPacket::GetReasonKey(eDISCONNECT_REASON reason)
             return "disconnect.not_whitelisted";
         }
 
+        case eDisconnectReason_ModMismatch: {
+            return "disconnect.mod_mismatch";
+        }
+
         default: {
             return "disconnect.default";
         }

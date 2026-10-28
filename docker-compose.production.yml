@@ -43,17 +43,28 @@ services:
       EVERSTEAD_RENDEZVOUS_ADDRESS: ":37373"
       EVERSTEAD_PUBLIC_HOST: ${EVERSTEAD_PUBLIC_HOST:?Set EVERSTEAD_PUBLIC_HOST in .env}
       EVERSTEAD_DISCOURSE_SECRET: ${EVERSTEAD_DISCOURSE_SECRET:-}
+      EVERSTEAD_ADMIN_PASSWORD_HASH: ${EVERSTEAD_ADMIN_PASSWORD_HASH:-}
       EVERSTEAD_MONGO_URI: mongodb://everstead:${EVERSTEAD_MONGO_PASSWORD}@mongo:27017/?authSource=admin
       EVERSTEAD_MONGO_DATABASE: everstead
       EVERSTEAD_POSTGRES_URL: postgres://everstead:${EVERSTEAD_POSTGRES_PASSWORD}@postgres:5432/everstead?sslmode=disable
     ports:
       - "8088:8088"
       - "37373:37373/udp"
+    networks:
+      default:
+      plasma:
+        aliases:
+          - everstead-backend
     depends_on:
       mongo:
         condition: service_healthy
       postgres:
         condition: service_healthy
+
+networks:
+  plasma:
+    name: plasma-network_default
+    external: true
 
 volumes:
   mongo-data:
