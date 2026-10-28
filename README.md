@@ -85,3 +85,7 @@ end)
 Mods can ship translations in `lang/<code>.loc`, which are merged over the game's own strings. See `modkit/example/` for a complete mod.
 
 For editor autocompletion, point your Lua language server at `modkit/library/`. The build generates `game.lua` there from the game's headers, and `modkit/.luarc.json` sets this up for VS Code.
+
+## Community
+
+[Discord server](https://discord.gg/7jUxqYfJNT)
