@@ -1,0 +1,19 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "melon_seeds",
+                    "count": {
+                        "n": 3,
+                        "p": {
+                            "property": "age",
+                            "add": 1,
+                            "scale": 0.0666667
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

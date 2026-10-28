@@ -1,0 +1,18 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "half",
+                    "value": 0
+                }
+            ],
+            "entries": [
+                {
+                    "name": "bamboo_door"
+                }
+            ]
+        }
+    ]
+}

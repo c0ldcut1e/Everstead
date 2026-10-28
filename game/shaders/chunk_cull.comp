@@ -1,0 +1,187 @@
+#version 450
+
+layout(local_size_x = 64) in;
+
+struct DrawCommand
+{
+    uint count;
+    uint instanceCount;
+    uint firstIndex;
+    int baseVertex;
+    uint baseInstance;
+};
+
+layout(std140, set = 0, binding = 0) uniform CullParams
+{
+    vec4 u_planes[6];
+    vec4 u_cameraSection;
+    vec4 u_cameraOffset;
+    mat4 u_occlusionMatrix;
+    vec4 u_occlusionSize;
+    vec4 u_distances;
+    vec4 u_occlusionGrid;
+    vec4 u_renderArea;
+};
+
+layout(std430, set = 0, binding = 1) readonly buffer Commands
+{
+    DrawCommand commands[];
+};
+
+layout(std430, set = 0, binding = 2) readonly buffer Sections
+{
+    ivec4 sections[];
+};
+
+layout(std430, set = 0, binding = 3) writeonly buffer CulledCommands
+{
+    DrawCommand culled[];
+};
+
+layout(std430, set = 0, binding = 4) buffer Counts
+{
+    uint counts[];
+};
+
+layout(std430, set = 0, binding = 5) readonly buffer Pyramid
+{
+    float depths[];
+};
+
+layout(std430, set = 0, binding = 6) readonly buffer Visibility
+{
+    uint visibility[];
+};
+
+layout(std430, set = 0, binding = 7) readonly buffer Windows
+{
+    uint windows[];
+};
+
+// The pyramid holds last frame's farthest depth per tile and the matrix projects into that frame
+bool IsOccluded(vec3 boxMin, vec3 boxMax)
+{
+    vec3 ndcMin = vec3(1e9);
+    vec3 ndcMax = vec3(-1e9);
+    for (int i = 0; i < 8; i++)
+    {
+        vec4 clip = u_occlusionMatrix * vec4(mix(boxMin, boxMax, vec3(i & 1, (i >> 1) & 1, (i >> 2) & 1)), 1.0);
+        if (clip.w <= 0.0)
+        {
+            return false;
+        }
+
+        ndcMin = min(ndcMin, clip.xyz / clip.w);
+        ndcMax = max(ndcMax, clip.xyz / clip.w);
+    }
+
+    // Turning can uncover anything past the edge of last frame's view, so only boxes fully inside it get tested
+    if (any(lessThan(ndcMin.xy, vec2(-1.0))) || any(greaterThan(ndcMax.xy, vec2(1.0))))
+    {
+        return false;
+    }
+
+    ivec4 size      = floatBitsToInt(u_occlusionSize);
+    ivec2 pixelMin  = min(ivec2((ndcMin.xy * 0.5 + 0.5) * vec2(size.xy)), size.xy - 1);
+    ivec2 pixelMax  = min(ivec2((ndcMax.xy * 0.5 + 0.5) * vec2(size.xy)), size.xy - 1);
+    ivec2 levelSize = (size.xy + 3) / 4;
+    int offset      = 0;
+    int shift       = 2;
+    for (int level = 0; level < size.z - 1; level++)
+    {
+        ivec2 span = (pixelMax >> shift) - (pixelMin >> shift);
+        if (span.x <= 1 && span.y <= 1)
+        {
+            break;
+        }
+
+        offset += levelSize.x * levelSize.y;
+        levelSize = (levelSize + 1) / 2;
+        shift++;
+    }
+
+    float depth = 0.0;
+    for (int y = pixelMin.y >> shift; y <= pixelMax.y >> shift; y++)
+    {
+        for (int x = pixelMin.x >> shift; x <= pixelMax.x >> shift; x++)
+        {
+            depth = max(depth, depths[offset + y * levelSize.x + x]);
+        }
+    }
+
+    return ndcMin.z * 0.5 + 0.5 > depth;
+}
+
+void main()
+{
+    // The camera section and command count are ints bit cast into floats because flattened blocks hold one type
+    ivec4 cameraSection = floatBitsToInt(u_cameraSection);
+    uint index          = gl_GlobalInvocationID.x;
+    if (index >= uint(cameraSection.w) || commands[index].count == 0u)
+    {
+        return;
+    }
+
+    ivec4 section = sections[index];
+    vec3 local    = vec3((cameraSection.xyz - section.xyz) * 16) + u_cameraOffset.xyz;
+
+    // We pad the section bounds by a block because some models reach past their own block
+    vec3 boxMin    = -local - 1.0;
+    vec3 boxMax    = boxMin + 18.0;
+    float boxDistance = length(clamp(vec3(0.0), boxMin, boxMax));
+    if (boxDistance < u_distances.y || boxDistance >= u_distances.z)
+    {
+        return;
+    }
+
+    ivec4 area      = floatBitsToInt(u_renderArea);
+    ivec2 regionMin = ivec2(floor(vec2(section.xz) / float(area.w))) * area.w;
+    ivec2 outside   = max(max(regionMin - area.xy, area.xy - (regionMin + area.w - 1)), ivec2(0));
+    if (dot(outside, outside) > area.z * area.z)
+    {
+        return;
+    }
+
+    ivec4 grid = floatBitsToInt(u_occlusionGrid);
+    ivec2 cell = section.xz - grid.xy;
+    if (grid.w != 0 && all(lessThanEqual(abs(cell), ivec2(grid.z))) && section.y >= 0 && section.y < 16)
+    {
+        int column = (cell.x + grid.z) + (cell.y + grid.z) * (grid.z * 2 + 1);
+        int byteIndex = column * 16 + section.y;
+        if (((visibility[byteIndex >> 2] >> ((byteIndex & 3) * 8)) & 0xFFu) == 0u)
+        {
+            return;
+        }
+    }
+
+    bool visible = true;
+    for (int i = 0; i < 6; i++)
+    {
+        vec3 corner = mix(boxMin, boxMax, greaterThanEqual(u_planes[i].xyz, vec3(0.0)));
+        visible     = visible && dot(u_planes[i].xyz, corner) + u_planes[i].w >= 0.0;
+    }
+
+    if (u_distances.x > 0.0)
+    {
+        visible = visible && boxDistance < u_distances.x;
+    }
+
+    int face = section.w & 7;
+    if (face < 6)
+    {
+        float coordinate = local[face >> 1];
+        visible          = visible && ((face & 1) == 0 ? coordinate > -1.0 : coordinate < 17.0);
+    }
+
+    if (visible && u_occlusionSize.w != 0.0)
+    {
+        visible = !IsOccluded(boxMin, boxMax);
+    }
+
+    // Visible draws are compacted to the front of their group's window, and section.w holds the group above the face
+    if (visible)
+    {
+        uint window = windows[uint(section.w >> 3)];
+        culled[window + atomicAdd(counts[window], 1u)] = commands[index];
+    }
+}

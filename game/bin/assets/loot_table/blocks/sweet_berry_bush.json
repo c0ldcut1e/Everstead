@@ -1,0 +1,40 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 3
+                }
+            ],
+            "entries": [
+                {
+                    "name": "sweet_berries",
+                    "count": {
+                        "min": 2,
+                        "max": 3
+                    }
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 2
+                }
+            ],
+            "entries": [
+                {
+                    "name": "sweet_berries",
+                    "count": {
+                        "min": 1,
+                        "max": 2
+                    }
+                }
+            ]
+        }
+    ]
+}

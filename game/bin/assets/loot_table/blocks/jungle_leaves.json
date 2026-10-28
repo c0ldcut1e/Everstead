@@ -1,0 +1,35 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears"
+                }
+            ],
+            "entries": [
+                {
+                    "name": "jungle_leaves"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears",
+                    "inverted": true
+                },
+                {
+                    "condition": "random_chance",
+                    "chance": 0.025
+                }
+            ],
+            "entries": [
+                {
+                    "name": "jungle_sapling"
+                }
+            ]
+        }
+    ]
+}

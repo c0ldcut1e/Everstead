@@ -1,0 +1,19 @@
+{{template "header" .}}
+<h1>Create an account</h1>
+<form method="post" action="/register">
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" required minlength="3" maxlength="16"
+           pattern="[A-Za-z0-9_-]+" value="{{with .Form}}{{.username}}{{end}}">
+    <p class="hint">3 to 16 letters, digits, underscores or dashes.</p>
+
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" required value="{{with .Form}}{{.email}}{{end}}">
+
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required minlength="8">
+    <p class="hint">At least 8 characters.</p>
+
+    <button type="submit" class="button">Create account</button>
+</form>
+<p>Already have an account? <a href="/login">Sign in</a>.</p>
+{{template "footer" .}}

@@ -1,0 +1,12 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "snowball",
+                    "count": 4
+                }
+            ]
+        }
+    ]
+}

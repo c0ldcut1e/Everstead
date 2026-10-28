@@ -1,0 +1,15 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "snowball",
+                    "count": {
+                        "property": "layers",
+                        "add": 1
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "book",
+                    "count": 3
+                }
+            ]
+        }
+    ]
+}

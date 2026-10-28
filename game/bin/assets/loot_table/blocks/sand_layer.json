@@ -1,0 +1,15 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "sand_layer",
+                    "count": {
+                        "property": "layers",
+                        "add": 1
+                    }
+                }
+            ]
+        }
+    ]
+}

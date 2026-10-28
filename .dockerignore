@@ -1,0 +1,10 @@
+.git
+.agents
+.claude
+.codex
+.vscode
+build
+game/bin/Everstead
+game/bin/Everstead.exe
+game/bin/logs
+game/bin/user

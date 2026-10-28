@@ -1,0 +1,16 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "flint",
+                    "weight": 1
+                },
+                {
+                    "name": "gravel",
+                    "weight": 9
+                }
+            ]
+        }
+    ]
+}

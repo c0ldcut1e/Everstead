@@ -1,0 +1,23 @@
+{{template "header" .}}
+<div class="forum-page">
+<p class="forum-crumbs"><a href="/forum">Forum</a> / New thread</p>
+<h1>New thread</h1>
+<form method="post" action="/forum/new">
+    <label for="category">Category</label>
+    <select id="category" name="category">
+        {{range .Forum.Categories}}<option value="{{.Slug}}" data-placeholder="{{.Placeholder}}"{{if eq .Slug (index $.Form "category")}} selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+    <label for="title">Title</label>
+    <input id="title" name="title" type="text" value="{{index .Form "title"}}" minlength="3" maxlength="100" required>
+    <label for="body">Post</label>
+    <textarea id="body" name="body" rows="12" maxlength="10000" required>{{index .Form "body"}}</textarea>
+    <button class="button" type="submit">Post thread</button>
+</form>
+<script>
+const category = document.getElementById("category");
+const updatePlaceholder = () => document.getElementById("body").placeholder = category.selectedOptions[0].dataset.placeholder;
+category.addEventListener("change", updatePlaceholder);
+updatePlaceholder();
+</script>
+</div>
+{{template "footer" .}}

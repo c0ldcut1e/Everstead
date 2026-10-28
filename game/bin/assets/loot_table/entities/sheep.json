@@ -1,0 +1,175 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "sheared",
+                    "value": 0
+                }
+            ],
+            "entries": [
+                {
+                    "name": "white_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 0
+                        }
+                    ]
+                },
+                {
+                    "name": "orange_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "name": "magenta_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 2
+                        }
+                    ]
+                },
+                {
+                    "name": "light_blue_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 3
+                        }
+                    ]
+                },
+                {
+                    "name": "yellow_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 4
+                        }
+                    ]
+                },
+                {
+                    "name": "lime_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 5
+                        }
+                    ]
+                },
+                {
+                    "name": "pink_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 6
+                        }
+                    ]
+                },
+                {
+                    "name": "gray_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 7
+                        }
+                    ]
+                },
+                {
+                    "name": "light_gray_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 8
+                        }
+                    ]
+                },
+                {
+                    "name": "cyan_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 9
+                        }
+                    ]
+                },
+                {
+                    "name": "purple_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 10
+                        }
+                    ]
+                },
+                {
+                    "name": "blue_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 11
+                        }
+                    ]
+                },
+                {
+                    "name": "brown_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 12
+                        }
+                    ]
+                },
+                {
+                    "name": "green_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 13
+                        }
+                    ]
+                },
+                {
+                    "name": "red_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 14
+                        }
+                    ]
+                },
+                {
+                    "name": "black_wool",
+                    "conditions": [
+                        {
+                            "condition": "property",
+                            "property": "color",
+                            "value": 15
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

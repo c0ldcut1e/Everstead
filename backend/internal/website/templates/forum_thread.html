@@ -1,0 +1,84 @@
+{{template "header" .}}
+<div class="forum-page">
+{{with .Forum.Thread}}
+<p class="forum-crumbs"><a href="/forum">Forum</a> / <a href="/forum/{{$.Forum.Category.Slug}}">{{$.Forum.Category.Name}}</a> / #{{.ThreadID}}</p>
+{{if .Deleted}}<p class="error">This thread is deleted and only moderators can see it.</p>{{end}}
+<h1>{{.Title}}</h1>
+<p class="muted">{{if .Pinned}}<span class="forum-status">Pinned</span> {{end}}{{if .Status}}<span class="forum-status">{{.Status}}</span> {{end}}{{if .Locked}}<span class="forum-status locked">Locked</span> {{end}}Started by <a href="/forum/user/{{.Author.Name}}">{{.Author.Name}}</a> on {{.CreatedAt.Format "2006-01-02 15:04"}} UTC</p>
+{{if .DuplicateOf}}<p class="notice">This is a duplicate of <a href="/forum/thread/{{.DuplicateOf}}">#{{.DuplicateOf}}</a>.</p>{{end}}
+{{if $.Forum.Category.Votes}}
+<form class="forum-vote" method="post" action="/forum/thread/{{.ThreadID}}/vote">
+    <span>{{.VoteCount}} votes</span>
+    {{if $.Account}}<button class="button secondary" type="submit">{{if $.Forum.Voted}}Remove vote{{else}}Upvote{{end}}</button>{{end}}
+</form>
+{{end}}
+{{end}}
+{{range .Forum.Posts}}
+<article class="forum-post{{if .Deleted}} deleted{{end}}" id="post-{{.PostID}}">
+    <header>
+        <a href="/forum/user/{{.Author.Name}}"><strong>{{.Author.Name}}</strong></a>
+        {{if .Author.Badge}}<span class="forum-badge">{{.Author.Badge}}</span>{{end}}
+        <span class="muted">{{.CreatedAt.Format "2006-01-02 15:04"}} UTC{{if not .EditedAt.IsZero}}, edited {{.EditedAt.Format "2006-01-02 15:04"}}{{end}}</span>
+        {{if and .CanEdit (or (not .Deleted) $.Forum.CanModerate)}}<a class="link" href="/forum/post/{{.PostID}}/edit">Edit</a>{{end}}
+        {{if .CanDelete}}{{if .Deleted}}<form method="post" action="/forum/post/{{.PostID}}/restore"><button class="link" type="submit">Restore</button></form>{{else}}<form method="post" action="/forum/post/{{.PostID}}/delete"><button class="link" type="submit">Delete</button></form>{{end}}{{end}}
+    </header>
+    {{if and .Deleted (not $.Forum.CanModerate)}}
+    <p class="muted">This post was deleted.</p>
+    {{else}}
+    {{if .Deleted}}<p class="muted">Deleted, only moderators can see this post.</p>{{end}}
+    <div class="forum-body">{{markdown .Body}}</div>
+    {{if and $.Account (not .Deleted)}}
+    <details class="forum-report">
+        <summary>Report</summary>
+        <form method="post" action="/forum/post/{{.PostID}}/report">
+            <input name="reason" type="text" maxlength="500" placeholder="Why should a moderator look at this?" required>
+            <button class="button secondary" type="submit">Send report</button>
+        </form>
+    </details>
+    {{end}}
+    {{end}}
+</article>
+{{end}}
+<span id="latest"></span>
+{{if .Account}}
+    {{if or (not (or .Forum.Thread.Locked .Forum.Thread.Deleted)) .Forum.CanModerate}}
+    <form method="post" action="/forum/thread/{{.Forum.Thread.ThreadID}}/reply">
+        <label for="body">Reply</label>
+        <textarea id="body" name="body" rows="6" maxlength="10000" placeholder="Markdown is supported." required>{{index .Form "body"}}</textarea>
+        <button class="button" type="submit">Post reply</button>
+    </form>
+    {{else}}
+    <p class="muted">This thread is locked.</p>
+    {{end}}
+{{else}}
+<p class="muted"><a href="/login">Sign in</a> to reply.</p>
+{{end}}
+{{if .Forum.CanModerate}}
+<form class="forum-tools" method="post" action="/forum/thread/{{.Forum.Thread.ThreadID}}/moderate">
+    <select name="category">
+        {{range .Forum.Categories}}<option value="{{.Slug}}"{{if eq .Slug $.Forum.Thread.Category}} selected{{end}}>{{.Name}}</option>{{end}}
+    </select>
+    {{if .Forum.Category.Statuses}}
+    <select name="status">
+        {{range .Forum.Category.Statuses}}<option{{if eq . $.Forum.Thread.Status}} selected{{end}}>{{.}}</option>{{end}}
+    </select>
+    {{end}}
+    <input name="duplicateOf" type="text" placeholder="Duplicate of #" value="{{if .Forum.Thread.DuplicateOf}}{{.Forum.Thread.DuplicateOf}}{{end}}">
+    <label><input type="checkbox" name="locked"{{if .Forum.Thread.Locked}} checked{{end}}> Locked</label>
+    <label><input type="checkbox" name="pinned"{{if .Forum.Thread.Pinned}} checked{{end}}> Pinned</label>
+    <button class="button secondary" type="submit">Update thread</button>
+</form>
+{{end}}
+{{if .Forum.CanDelete}}
+    {{if .Forum.Thread.Deleted}}
+    <form class="forum-tools" method="post" action="/forum/thread/{{.Forum.Thread.ThreadID}}/restore">
+        <button class="button secondary" type="submit">Restore thread</button>
+    </form>
+    {{else}}
+    <form class="forum-tools" method="post" action="/forum/thread/{{.Forum.Thread.ThreadID}}/delete" onsubmit="return confirm('Delete this thread?')">
+        <button class="button secondary" type="submit">Delete thread</button>
+    </form>
+    {{end}}
+{{end}}
+</div>
+{{template "footer" .}}

@@ -1,0 +1,100 @@
+#version 450
+
+layout(local_size_x = 64) in;
+
+struct DrawCommand
+{
+    uint count;
+    uint instanceCount;
+    uint firstIndex;
+    int baseVertex;
+    uint baseInstance;
+};
+
+layout(std140, set = 0, binding = 0) uniform LodCullParams
+{
+    mat4 u_occlusionMatrix;
+    vec4 u_occlusionSize;
+};
+
+layout(std430, set = 0, binding = 1) buffer Commands
+{
+    DrawCommand commands[];
+};
+
+layout(std430, set = 0, binding = 2) readonly buffer Boxes
+{
+    vec4 boxes[];
+};
+
+layout(std430, set = 0, binding = 3) readonly buffer Pyramid
+{
+    float depths[];
+};
+
+bool IsOccluded(vec3 boxMin, vec3 boxMax)
+{
+    vec3 ndcMin = vec3(1e9);
+    vec3 ndcMax = vec3(-1e9);
+    for (int i = 0; i < 8; i++)
+    {
+        vec4 clip = u_occlusionMatrix * vec4(mix(boxMin, boxMax, vec3(i & 1, (i >> 1) & 1, (i >> 2) & 1)), 1.0);
+        if (clip.w <= 0.0)
+        {
+            return false;
+        }
+
+        ndcMin = min(ndcMin, clip.xyz / clip.w);
+        ndcMax = max(ndcMax, clip.xyz / clip.w);
+    }
+
+    if (any(lessThan(ndcMin.xy, vec2(-1.0))) || any(greaterThan(ndcMax.xy, vec2(1.0))))
+    {
+        return false;
+    }
+
+    ivec4 size      = floatBitsToInt(u_occlusionSize);
+    ivec2 pixelMin  = min(ivec2((ndcMin.xy * 0.5 + 0.5) * vec2(size.xy)), size.xy - 1);
+    ivec2 pixelMax  = min(ivec2((ndcMax.xy * 0.5 + 0.5) * vec2(size.xy)), size.xy - 1);
+    ivec2 levelSize = (size.xy + 3) / 4;
+    int offset      = 0;
+    int shift       = 2;
+    for (int level = 0; level < size.z - 1; level++)
+    {
+        ivec2 span = (pixelMax >> shift) - (pixelMin >> shift);
+        if (span.x <= 1 && span.y <= 1)
+        {
+            break;
+        }
+
+        offset += levelSize.x * levelSize.y;
+        levelSize = (levelSize + 1) / 2;
+        shift++;
+    }
+
+    float depth = 0.0;
+    for (int y = pixelMin.y >> shift; y <= pixelMax.y >> shift; y++)
+    {
+        for (int x = pixelMin.x >> shift; x <= pixelMax.x >> shift; x++)
+        {
+            depth = max(depth, depths[offset + y * levelSize.x + x]);
+        }
+    }
+
+    // Tiles past the chunk far plane land beyond depth 1, so we clamp them or open sky would hide them
+    return min(ndcMin.z * 0.5 + 0.5, 1.0) > depth;
+}
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= uint(floatBitsToInt(u_occlusionSize.w)))
+    {
+        return;
+    }
+
+    if (IsOccluded(boxes[index * 2].xyz, boxes[index * 2 + 1].xyz))
+    {
+        commands[index].instanceCount = 0u;
+    }
+}

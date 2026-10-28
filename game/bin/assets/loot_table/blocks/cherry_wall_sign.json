@@ -1,0 +1,11 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "cherry_sign"
+                }
+            ]
+        }
+    ]
+}

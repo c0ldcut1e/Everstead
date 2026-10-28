@@ -1,0 +1,35 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears"
+                }
+            ],
+            "entries": [
+                {
+                    "name": "dead_bush"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears",
+                    "inverted": true
+                }
+            ],
+            "entries": [
+                {
+                    "name": "stick",
+                    "count": {
+                        "min": 0,
+                        "max": 2
+                    }
+                }
+            ]
+        }
+    ]
+}

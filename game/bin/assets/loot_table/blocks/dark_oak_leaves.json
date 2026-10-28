@@ -1,0 +1,53 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears"
+                }
+            ],
+            "entries": [
+                {
+                    "name": "dark_oak_leaves"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears",
+                    "inverted": true
+                },
+                {
+                    "condition": "random_chance",
+                    "chance": 0.05
+                }
+            ],
+            "entries": [
+                {
+                    "name": "dark_oak_sapling"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears",
+                    "inverted": true
+                },
+                {
+                    "condition": "random_chance",
+                    "chance": 0.005
+                }
+            ],
+            "entries": [
+                {
+                    "name": "apple"
+                }
+            ]
+        }
+    ]
+}

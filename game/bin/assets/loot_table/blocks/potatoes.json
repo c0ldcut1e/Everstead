@@ -1,0 +1,68 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "max": 6
+                }
+            ],
+            "entries": [
+                {
+                    "name": "potato"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 7
+                }
+            ],
+            "entries": [
+                {
+                    "name": "potato"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 7
+                }
+            ],
+            "entries": [
+                {
+                    "name": "potato",
+                    "count": {
+                        "n": 3,
+                        "p": 0.5714286
+                    }
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 7
+                },
+                {
+                    "condition": "random_chance",
+                    "chance": 0.02
+                }
+            ],
+            "entries": [
+                {
+                    "name": "poisonous_potato"
+                }
+            ]
+        }
+    ]
+}

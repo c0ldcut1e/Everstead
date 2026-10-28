@@ -1,0 +1,32 @@
+{{template "header" .}}
+<div class="forum-page">
+{{with .Forum.Profile}}
+<p class="forum-crumbs"><a href="/forum">Forum</a> / {{.Account.Username}}</p>
+<h1>{{.Account.Username}} {{if .Badge}}<span class="forum-badge">{{.Badge}}</span>{{end}}</h1>
+<p class="muted">Joined {{.Account.CreatedAt.Format "2006-01-02"}}, {{.Stats.Threads}} threads, {{.Stats.Posts}} posts{{if and $.Forum.CanModerate .Muted}}, <strong>muted until {{.Account.MutedUntil.Format "2006-01-02 15:04"}}</strong>{{if .Account.MuteReason}} for {{.Account.MuteReason}}{{end}}{{end}}</p>
+{{if .CanMute}}
+<form class="forum-tools" method="post" action="/forum/user/{{.Account.Pid}}/mute">
+    <select name="duration">
+        <option value="1h">1 hour</option><option value="1d">1 day</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="permanent">Permanent</option><option value="none">Unmute</option>
+    </select>
+    <input name="reason" type="text" maxlength="200" placeholder="Reason">
+    <button class="button secondary" type="submit">Apply</button>
+</form>
+{{end}}
+{{end}}
+<h2>Recent threads</h2>
+<div class="forum-list">
+    {{range .Forum.Threads}}
+    <a class="forum-row" href="/forum/thread/{{.ThreadID}}">
+        <div>
+            <strong>{{if .Status}}<span class="forum-status">{{.Status}}</span> {{end}}{{.Title}}</strong>
+            <span class="muted">#{{.ThreadID}} in {{.Category}} on {{.CreatedAt.Format "2006-01-02"}}</span>
+        </div>
+        <div class="forum-meta"><span>{{.ReplyCount}} replies</span></div>
+    </a>
+    {{else}}
+    <p class="muted forum-empty">No threads yet.</p>
+    {{end}}
+</div>
+</div>
+{{template "footer" .}}

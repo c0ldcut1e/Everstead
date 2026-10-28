@@ -1,0 +1,21 @@
+{{template "header" .}}
+<h1>Version archive</h1>
+{{if not .Versions}}
+    <p class="muted">The version list could not be loaded right now.</p>
+{{end}}
+{{range .Versions}}
+<section class="version">
+    <h2>{{.Version}}{{if .Latest}} <span class="version-latest">Latest</span>{{end}}</h2>
+    <div class="version-columns">
+        <div>
+            <h3>Game</h3>
+            {{range .Clients}}<a class="version-file" href="{{.URL}}" download><span>{{.Platform}}</span><small>{{.Size}}</small></a>{{else}}<p class="muted">Not available</p>{{end}}
+        </div>
+        <div>
+            <h3>Server</h3>
+            {{range .Servers}}<a class="version-file" href="{{.URL}}" download><span>{{.Platform}}</span><small>{{.Size}}</small></a>{{else}}<p class="muted">Not available</p>{{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+{{template "footer" .}}

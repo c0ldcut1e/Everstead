@@ -1,0 +1,24 @@
+{{template "header" .}}
+<div class="forum-page">
+<div class="forum-heading">
+    <h1>Forum</h1>
+    {{if .Account}}<a class="button" href="/forum/new">New thread</a>{{end}}
+</div>
+<form class="forum-search" method="get" action="/forum/search"><input type="search" name="q" placeholder="Search the forum" minlength="2"><button class="button secondary" type="submit">Search</button></form>
+<p class="muted">Report bugs, suggest features and talk with other players.{{if not .Account}} <a href="/login">Sign in</a> to post.{{end}}</p>
+<div class="forum-list">
+    {{range .Forum.Categories}}
+    <a class="forum-row" href="/forum/{{.Slug}}">
+        <div>
+            <strong>{{.Name}}</strong>
+            <span class="muted">{{.Description}}</span>
+        </div>
+        <div class="forum-meta">
+            <span>{{.ThreadCount}} threads</span>
+            {{with .Latest}}<span class="muted">{{.Title}} by {{.Author.Name}}</span>{{end}}
+        </div>
+    </a>
+    {{end}}
+</div>
+</div>
+{{template "footer" .}}

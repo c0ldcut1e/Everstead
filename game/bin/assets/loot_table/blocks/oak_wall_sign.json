@@ -1,0 +1,11 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "oak_sign"
+                }
+            ]
+        }
+    ]
+}

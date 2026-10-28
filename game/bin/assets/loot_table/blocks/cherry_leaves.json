@@ -1,0 +1,35 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears"
+                }
+            ],
+            "entries": [
+                {
+                    "name": "cherry_leaves"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "match_tool",
+                    "item": "shears",
+                    "inverted": true
+                },
+                {
+                    "condition": "random_chance",
+                    "chance": 0.05
+                }
+            ],
+            "entries": [
+                {
+                    "name": "cherry_sapling"
+                }
+            ]
+        }
+    ]
+}

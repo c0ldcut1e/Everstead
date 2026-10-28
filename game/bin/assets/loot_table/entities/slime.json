@@ -1,0 +1,22 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "size",
+                    "value": 1
+                }
+            ],
+            "entries": [
+                {
+                    "name": "slime_ball",
+                    "count": {
+                        "min": 0,
+                        "max": 2
+                    }
+                }
+            ]
+        }
+    ]
+}

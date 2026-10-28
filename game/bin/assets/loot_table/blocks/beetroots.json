@@ -1,0 +1,50 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "max": 2
+                }
+            ],
+            "entries": [
+                {
+                    "name": "beetroot_seeds"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 3
+                }
+            ],
+            "entries": [
+                {
+                    "name": "beetroot"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 3
+                }
+            ],
+            "entries": [
+                {
+                    "name": "beetroot_seeds",
+                    "count": {
+                        "n": 3,
+                        "p": 0.5714286
+                    }
+                }
+            ]
+        }
+    ]
+}

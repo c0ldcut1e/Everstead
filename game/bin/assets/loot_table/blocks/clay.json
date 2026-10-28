@@ -1,0 +1,12 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "clay_ball",
+                    "count": 4
+                }
+            ]
+        }
+    ]
+}

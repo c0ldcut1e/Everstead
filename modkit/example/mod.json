@@ -1,0 +1,6 @@
+{
+    "id": "example",
+    "name": "Example Mod",
+    "version": "1.0.0",
+    "gameVersions": ["0.2"]
+}

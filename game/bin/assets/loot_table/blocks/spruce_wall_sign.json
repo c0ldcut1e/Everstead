@@ -1,0 +1,11 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "spruce_sign"
+                }
+            ]
+        }
+    ]
+}

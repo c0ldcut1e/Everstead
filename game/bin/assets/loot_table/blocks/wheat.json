@@ -1,0 +1,50 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "max": 6
+                }
+            ],
+            "entries": [
+                {
+                    "name": "wheat_seeds"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 7
+                }
+            ],
+            "entries": [
+                {
+                    "name": "wheat"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 7
+                }
+            ],
+            "entries": [
+                {
+                    "name": "wheat_seeds",
+                    "count": {
+                        "n": 3,
+                        "p": 0.5714286
+                    }
+                }
+            ]
+        }
+    ]
+}

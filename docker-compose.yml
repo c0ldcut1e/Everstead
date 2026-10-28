@@ -1,0 +1,90 @@
+# The Everstead backend: account API, account website, the UDP rendezvous that
+# introduces players to hosts, and the two databases behind them.
+#
+# Only the API/website and the rendezvous are published on every interface. The
+# databases and their web front ends are bound to 127.0.0.1, so they are
+# reachable from this machine only.
+name: everstead
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: everstead
+      MONGO_INITDB_ROOT_PASSWORD: everstead
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: everstead
+      POSTGRES_PASSWORD: everstead
+      POSTGRES_DB: everstead
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U everstead -d everstead"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      EVERSTEAD_LISTEN_ADDRESS: ":8088"
+      EVERSTEAD_RENDEZVOUS_ADDRESS: ":37373"
+      EVERSTEAD_PUBLIC_HOST: "${EVERSTEAD_PUBLIC_HOST:-127.0.0.1}"
+      EVERSTEAD_MONGO_URI: "mongodb://everstead:everstead@mongo:27017/?authSource=admin"
+      EVERSTEAD_MONGO_DATABASE: "everstead"
+      EVERSTEAD_POSTGRES_URL: "postgres://everstead:everstead@postgres:5432/everstead?sslmode=disable"
+    ports:
+      - "8088:8088"
+      - "37373:37373/udp"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://everstead:everstead@mongo:27017/?authSource=admin"
+      ME_CONFIG_BASICAUTH_USERNAME: everstead
+      ME_CONFIG_BASICAUTH_PASSWORD: everstead
+    ports:
+      - "127.0.0.1:8181:8081"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  adminer:
+    image: adminer:4
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "127.0.0.1:8182:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
+  postgres-data:

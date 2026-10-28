@@ -1,0 +1,14 @@
+{
+  "name": "everstead",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "freetype",
+    "openal-soft",
+    {
+      "name": "sdl2",
+      "features": ["vulkan"]
+    },
+    "vulkan-headers",
+    "zlib"
+  ]
+}

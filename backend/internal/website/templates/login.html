@@ -1,0 +1,14 @@
+{{template "header" .}}
+<h1>Sign in</h1>
+<form method="post" action="/login">
+    <input type="hidden" name="next" value="{{with .Form}}{{.next}}{{end}}">
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" required value="{{with .Form}}{{.username}}{{end}}">
+
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required>
+
+    <button type="submit" class="button">Sign in</button>
+</form>
+<p>No account yet? <a href="/register">Create one</a>.</p>
+{{template "footer" .}}

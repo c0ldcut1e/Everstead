@@ -1,0 +1,15 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "pumpkin_seeds",
+                    "count": {
+                        "n": 3,
+                        "p": 0.5333333
+                    }
+                }
+            ]
+        }
+    ]
+}

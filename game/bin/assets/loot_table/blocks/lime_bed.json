@@ -1,0 +1,18 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "head",
+                    "value": 0
+                }
+            ],
+            "entries": [
+                {
+                    "name": "lime_bed"
+                }
+            ]
+        }
+    ]
+}

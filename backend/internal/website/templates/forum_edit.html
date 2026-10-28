@@ -1,0 +1,15 @@
+{{template "header" .}}
+<div class="forum-page">
+<p class="forum-crumbs"><a href="/forum">Forum</a> / <a href="/forum/thread/{{.Forum.Thread.ThreadID}}">#{{.Forum.Thread.ThreadID}}</a> / Edit</p>
+<h1>Edit post</h1>
+<form method="post" action="/forum/post/{{.Forum.Post.PostID}}/edit">
+    {{if .Forum.Post.First}}
+    <label for="title">Title</label>
+    <input id="title" name="title" type="text" value="{{index .Form "title"}}" minlength="3" maxlength="100" required>
+    {{end}}
+    <label for="body">Post</label>
+    <textarea id="body" name="body" rows="12" maxlength="10000" required>{{index .Form "body"}}</textarea>
+    <button class="button" type="submit">Save</button>
+</form>
+</div>
+{{template "footer" .}}

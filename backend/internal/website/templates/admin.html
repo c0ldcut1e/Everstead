@@ -1,0 +1,21 @@
+{{template "header" .}}
+<div class="forum-page">
+<h1>Admin</h1>
+<p class="muted">{{.Admin.AccountCount}} accounts, <a href="/forum/moderation">{{.Admin.ReportCount}} open reports</a></p>
+<form class="forum-search" method="get" action="/admin"><input type="search" name="q" value="{{.Admin.Query}}" placeholder="Username, email or player ID"><button class="button secondary" type="submit">Search</button></form>
+<table class="admin-table">
+    <tr><th>Player ID</th><th>Username</th><th>Email</th><th>Role</th><th>Created</th></tr>
+    {{range .Admin.Accounts}}
+    <tr>
+        <td>{{.Pid}}</td>
+        <td><a href="/admin/account/{{.Pid}}">{{.Username}}</a>{{if .Disabled}} <span class="forum-status locked">Disabled</span>{{end}}</td>
+        <td>{{.Email}}</td>
+        <td>{{if eq .Permission 2}}Admin{{else if eq .Permission 1}}Moderator{{else}}User{{end}}</td>
+        <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="muted">No accounts found.</td></tr>
+    {{end}}
+</table>
+</div>
+{{template "footer" .}}

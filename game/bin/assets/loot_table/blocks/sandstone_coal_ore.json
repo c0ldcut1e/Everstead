@@ -1,0 +1,15 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "coal"
+                }
+            ]
+        }
+    ],
+    "experience": {
+        "min": 0,
+        "max": 2
+    }
+}

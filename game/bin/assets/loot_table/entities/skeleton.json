@@ -1,0 +1,26 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "arrow",
+                    "count": {
+                        "min": 0,
+                        "max": 2
+                    }
+                }
+            ]
+        },
+        {
+            "entries": [
+                {
+                    "name": "bone",
+                    "count": {
+                        "min": 0,
+                        "max": 2
+                    }
+                }
+            ]
+        }
+    ]
+}

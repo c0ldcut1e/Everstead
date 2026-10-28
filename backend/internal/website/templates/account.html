@@ -1,0 +1,121 @@
+{{template "header" .}}
+<h1>Your account</h1>
+<dl class="details">
+    <dt>Username</dt><dd>{{.Account.Username}}</dd>
+    <dt>Email</dt><dd>{{.Account.Email}}</dd>
+    <dt>Status</dt><dd>{{if .Account.Disabled}}Disabled{{else}}Active{{end}}</dd>
+</dl>
+<section class="account-section">
+    <div class="section-heading">
+        <div class="section-icon" aria-hidden="true">✦</div>
+        <div>
+            <h2>Username</h2>
+            <p>Username changes are available once every 30 days.</p>
+        </div>
+    </div>
+    <form method="post" action="/account/username">
+        <label for="username">New username</label>
+        <input id="username" name="username" type="text" value="{{.Account.Username}}" minlength="3" maxlength="16" pattern="[A-Za-z0-9_-]{3,16}" required>
+        <button class="button" type="submit">Change username</button>
+    </form>
+</section>
+<section class="account-section">
+    <div class="section-heading">
+        <div class="section-icon" aria-hidden="true">@</div>
+        <div>
+            <h2>Email</h2>
+            <p>Confirm your current password before changing your email.</p>
+        </div>
+    </div>
+    <form method="post" action="/account/email">
+        <label for="email">New email</label>
+        <input id="email" name="email" type="email" value="{{.Account.Email}}" autocomplete="email" required>
+        <label for="email-password">Current password</label>
+        <input id="email-password" name="currentPassword" type="password" autocomplete="current-password" required>
+        <button class="button" type="submit">Change email</button>
+    </form>
+</section>
+<section class="account-section">
+    <div class="section-heading">
+        <div class="section-icon" aria-hidden="true">⌁</div>
+        <div>
+            <h2>Password</h2>
+            <p>Confirm your current password before choosing a new one.</p>
+        </div>
+    </div>
+    <form method="post" action="/account/password">
+        <label for="current-password">Current password</label>
+        <input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required>
+        <label for="new-password">New password</label>
+        <input id="new-password" name="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+        <button class="button" type="submit">Change password</button>
+    </form>
+</section>
+<section class="account-section">
+    <div class="section-heading">
+        <div class="section-icon" aria-hidden="true">#</div>
+        <div>
+            <h2>Servers</h2>
+            <p>Register up to 2 dedicated servers. Put the token in the server's config and never share it.</p>
+        </div>
+    </div>
+    {{if .Token}}
+    <div class="token-box">
+        <label for="server-token">Server token, shown only once</label>
+        <div class="token-row">
+            <input id="server-token" type="text" value="{{.Token}}" readonly>
+            <button class="button secondary" type="button" onclick="document.getElementById('server-token').select(); document.execCommand('copy'); this.textContent = 'Copied'">Copy</button>
+        </div>
+    </div>
+    {{end}}
+    {{range .Servers}}
+    <dl class="details">
+        <dt>Name</dt><dd>{{.Name}}</dd>
+    </dl>
+    <form method="post" action="/account/servers/{{.ServerID}}/token">
+        <button class="button" type="submit">Regenerate token</button>
+    </form>
+    <form method="post" action="/account/servers/{{.ServerID}}/delete">
+        <button class="button" type="submit">Delete server</button>
+    </form>
+    {{end}}
+    {{if lt (len .Servers) 2}}
+    <form method="post" action="/account/servers">
+        <label for="server-name">Server name</label>
+        <input id="server-name" name="name" type="text" minlength="3" maxlength="24" pattern="[A-Za-z0-9_-]{3,24}" required>
+        <button class="button" type="submit">Create server</button>
+    </form>
+    {{end}}
+</section>
+<section class="account-section">
+    <div class="section-heading">
+        <div class="section-icon" aria-hidden="true">☺</div>
+        <div>
+            <h2>Skin and cape</h2>
+        </div>
+    </div>
+    <div class="skin-preview">
+        <canvas id="skin-preview" width="320" height="200" data-skin="{{if .Account.SkinHash}}/textures/{{.Account.SkinHash}}{{end}}" data-model="{{if .Account.SkinModel}}{{.Account.SkinModel}}{{else}}classic{{end}}"></canvas>
+    </div>
+    <form method="post" action="/account/skin" enctype="multipart/form-data">
+        <label for="skin-file">Skin</label>
+        <input id="skin-file" name="skin" type="file" accept="image/png">
+        <label for="skin-model">Model</label>
+        <select id="skin-model" name="model">
+            <option value="classic"{{if ne .Account.SkinModel "slim"}} selected{{end}}>Classic</option>
+            <option value="slim"{{if eq .Account.SkinModel "slim"}} selected{{end}}>Slim</option>
+        </select>
+        <button class="button" type="submit">Save skin</button>
+        {{if .Account.SkinHash}}<button class="button secondary" type="submit" name="reset" value="1" formnovalidate>Reset skin</button>{{end}}
+    </form>
+    <form method="post" action="/account/cape">
+        <label for="cape-select">Cape</label>
+        <select id="cape-select" name="cape">
+            <option value="" data-url="">No cape</option>
+            {{range .Capes}}{{if .Unlocked}}<option value="{{.ID}}" data-url="/static/capes/{{.File}}.png"{{if .Selected}} selected{{end}}>{{.Name}}</option>{{end}}{{end}}
+        </select>
+        <button class="button" type="submit">Save cape</button>
+    </form>
+</section>
+<script src="{{static "skin.js"}}"></script>
+{{template "footer" .}}

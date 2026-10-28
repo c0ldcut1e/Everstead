@@ -1,0 +1,31 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "string",
+                    "count": {
+                        "min": 0,
+                        "max": 2
+                    }
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "killed_by_player"
+                },
+                {
+                    "condition": "random_chance",
+                    "chance": 0.3333333
+                }
+            ],
+            "entries": [
+                {
+                    "name": "spider_eye"
+                }
+            ]
+        }
+    ]
+}

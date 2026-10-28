@@ -1,0 +1,558 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "cwd": "${workspaceFolder}"
+    },
+    "tasks": [
+        {
+            "label": "Everstead: Prepare Docker Build Environment",
+            "type": "shell",
+            "command": "bash -c 'HASH=$(cat Dockerfile | sha256sum | cut -c1-32); CURRENT=$(docker image inspect everstead-builder:latest --format \"{{index .Config.Labels \\\"everstead.toolchain.hash\\\"}}\" 2>/dev/null || true); if [ \"$CURRENT\" = \"$HASH\" ]; then echo \"Linux toolchain image is up to date\"; else docker build --target toolchain --build-arg EVERSTEAD_TOOLCHAIN_HASH=\"$HASH\" --tag everstead-builder:latest .; fi'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            },
+            "windows": {
+                "command": "$hash = (Get-FileHash Dockerfile -Algorithm SHA256).Hash.Substring(0, 32); $current = docker image inspect everstead-builder:latest --format '{{index .Config.Labels \"everstead.toolchain.hash\"}}' 2>$null; if ($LASTEXITCODE -ne 0) { $current = '' }; if ($current -eq $hash) { Write-Output 'Linux toolchain image is up to date' } else { docker build --target toolchain --build-arg EVERSTEAD_TOOLCHAIN_HASH=$hash --tag everstead-builder:latest . }"
+            }
+        },
+        {
+            "label": "Everstead: Prepare Windows Docker Build Environment",
+            "type": "shell",
+            "command": "bash -c 'HASH=$(cat Dockerfile game/vcpkg.json | sha256sum | cut -c1-32); CURRENT=$(docker image inspect everstead-builder-windows:latest --format \"{{index .Config.Labels \\\"everstead.toolchain.hash\\\"}}\" 2>/dev/null || true); if [ \"$CURRENT\" = \"$HASH\" ]; then echo \"Windows toolchain image is up to date\"; else docker build --target toolchain-windows --build-arg EVERSTEAD_TOOLCHAIN_HASH=\"$HASH\" --tag everstead-builder-windows:latest .; fi'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            },
+            "windows": {
+                "command": "$hash = ((Get-FileHash Dockerfile -Algorithm SHA256).Hash + (Get-FileHash game/vcpkg.json -Algorithm SHA256).Hash).Substring(0, 32); $current = docker image inspect everstead-builder-windows:latest --format '{{index .Config.Labels \"everstead.toolchain.hash\"}}' 2>$null; if ($LASTEXITCODE -ne 0) { $current = '' }; if ($current -eq $hash) { Write-Output 'Windows toolchain image is up to date' } else { docker build --target toolchain-windows --build-arg EVERSTEAD_TOOLCHAIN_HASH=$hash --tag everstead-builder-windows:latest . }"
+            }
+        },
+        {
+            "label": "Everstead: Configure Linux Debug",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --preset docker-linux-debug",
+            "dependsOn": "Everstead: Prepare Docker Build Environment",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder:latest /bin/bash -c 'grep -qs \"^CMAKE_HOME_DIRECTORY:INTERNAL=/work$\" build/docker-linux-debug/CMakeCache.txt || rm -rf build/docker-linux-debug; cmake --preset docker-linux-debug'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Build Linux Debug",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --build --preset docker-linux-debug --parallel",
+            "dependsOn": "Everstead: Configure Linux Debug",
+            "problemMatcher": "$gcc",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "windows": {
+                "command": "docker run --rm -t --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder:latest cmake --build --preset docker-linux-debug --parallel",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Clean Linux Debug",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --build --preset docker-linux-debug --target clean",
+            "problemMatcher": [],
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder:latest cmake --build --preset docker-linux-debug --target clean",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Configure Linux Release",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --preset docker-linux-release",
+            "dependsOn": "Everstead: Prepare Docker Build Environment",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder:latest /bin/bash -c 'grep -qs \"^CMAKE_HOME_DIRECTORY:INTERNAL=/work$\" build/docker-linux-release/CMakeCache.txt || rm -rf build/docker-linux-release; cmake --preset docker-linux-release'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Build Linux Release",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --build --preset docker-linux-release --parallel",
+            "dependsOn": "Everstead: Configure Linux Release",
+            "problemMatcher": "$gcc",
+            "group": "build",
+            "windows": {
+                "command": "docker run --rm -t --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder:latest cmake --build --preset docker-linux-release --parallel",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Configure Launcher Linux Debug",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --preset docker-launcher-linux-debug",
+            "dependsOn": "Everstead: Prepare Docker Build Environment",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Everstead: Build Launcher Linux Debug",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --build --preset docker-launcher-linux-debug --parallel",
+            "dependsOn": "Everstead: Configure Launcher Linux Debug",
+            "problemMatcher": "$gcc",
+            "group": "build"
+        },
+        {
+            "label": "Everstead: Configure Launcher Linux Release",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --preset docker-launcher-linux-release",
+            "dependsOn": "Everstead: Prepare Docker Build Environment",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Everstead: Build Launcher Linux Release",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --build --preset docker-launcher-linux-release --parallel",
+            "dependsOn": "Everstead: Configure Launcher Linux Release",
+            "problemMatcher": "$gcc",
+            "group": "build"
+        },
+        {
+            "label": "Everstead: Configure Launcher Linux ARM64 Debug",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-arm64:latest cmake --preset docker-launcher-linux-arm64-debug",
+            "dependsOn": "Everstead: Prepare ARM64 Docker Build Environment",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Everstead: Build Launcher Linux ARM64 Debug",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-arm64:latest cmake --build --preset docker-launcher-linux-arm64-debug --parallel",
+            "dependsOn": "Everstead: Configure Launcher Linux ARM64 Debug",
+            "problemMatcher": "$gcc",
+            "group": "build"
+        },
+        {
+            "label": "Everstead: Configure Launcher Linux ARM64 Release",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-arm64:latest cmake --preset docker-launcher-linux-arm64-release",
+            "dependsOn": "Everstead: Prepare ARM64 Docker Build Environment",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Everstead: Build Launcher Linux ARM64 Release",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-arm64:latest cmake --build --preset docker-launcher-linux-arm64-release --parallel",
+            "dependsOn": "Everstead: Configure Launcher Linux ARM64 Release",
+            "problemMatcher": "$gcc",
+            "group": "build"
+        },
+        {
+            "label": "Everstead: Prepare Launcher Windows Docker Build Environment",
+            "type": "shell",
+            "command": "bash -c 'HASH=$(cat Dockerfile launcher/vcpkg.json | sha256sum | cut -c1-32); CURRENT=$(docker image inspect everstead-builder-launcher-windows:latest --format \"{{index .Config.Labels \\\"everstead.toolchain.hash\\\"}}\" 2>/dev/null || true); if [ \"$CURRENT\" = \"$HASH\" ]; then echo \"Launcher Windows toolchain image is up to date\"; else docker build --target toolchain-windows-launcher --build-arg EVERSTEAD_TOOLCHAIN_HASH=\"$HASH\" --tag everstead-builder-launcher-windows:latest .; fi'",
+            "problemMatcher": [],
+            "windows": {
+                "command": "$hash = (Get-FileHash Dockerfile -Algorithm SHA256).Hash.Substring(0, 16) + (Get-FileHash launcher/vcpkg.json -Algorithm SHA256).Hash.Substring(0, 16); $current = docker image inspect everstead-builder-launcher-windows:latest --format '{{index .Config.Labels \"everstead.toolchain.hash\"}}' 2>$null; if ($LASTEXITCODE -ne 0) { $current = '' }; if ($current -eq $hash) { Write-Output 'Launcher Windows toolchain image is up to date' } else { docker build --target toolchain-windows-launcher --build-arg EVERSTEAD_TOOLCHAIN_HASH=$hash --tag everstead-builder-launcher-windows:latest . }"
+            }
+        },
+        {
+            "label": "Everstead: Configure Launcher Windows Debug",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-launcher-windows:latest cmake --preset docker-launcher-windows-debug",
+            "dependsOn": "Everstead: Prepare Launcher Windows Docker Build Environment",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-launcher-windows:latest /bin/bash -c 'grep -qs \"^CMAKE_HOME_DIRECTORY:INTERNAL=/work$\" build/docker-launcher-windows-debug/CMakeCache.txt || rm -rf build/docker-launcher-windows-debug; cmake --preset docker-launcher-windows-debug'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Build Launcher Windows Debug",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-launcher-windows:latest cmake --build --preset docker-launcher-windows-debug --parallel",
+            "dependsOn": "Everstead: Configure Launcher Windows Debug",
+            "problemMatcher": "$gcc",
+            "group": "build",
+            "windows": {
+                "command": "docker run --rm -t --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-launcher-windows:latest cmake --build --preset docker-launcher-windows-debug --parallel",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Configure Launcher Windows Release",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-launcher-windows:latest cmake --preset docker-launcher-windows-release",
+            "dependsOn": "Everstead: Prepare Launcher Windows Docker Build Environment",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-launcher-windows:latest /bin/bash -c 'grep -qs \"^CMAKE_HOME_DIRECTORY:INTERNAL=/work$\" build/docker-launcher-windows-release/CMakeCache.txt || rm -rf build/docker-launcher-windows-release; cmake --preset docker-launcher-windows-release'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Build Launcher Windows Release",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-launcher-windows:latest cmake --build --preset docker-launcher-windows-release --parallel",
+            "dependsOn": "Everstead: Configure Launcher Windows Release",
+            "problemMatcher": "$gcc",
+            "group": "build",
+            "windows": {
+                "command": "docker run --rm -t --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-launcher-windows:latest cmake --build --preset docker-launcher-windows-release --parallel",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Build Launcher All Release",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Everstead: Build Launcher Linux Release",
+                "Everstead: Build Launcher Linux ARM64 Release",
+                "Everstead: Build Launcher Windows Release"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Everstead: Build Launcher All Debug",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Everstead: Build Launcher Linux Debug",
+                "Everstead: Build Launcher Linux ARM64 Debug",
+                "Everstead: Build Launcher Windows Debug"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Everstead: Add Client and Server Version to R2",
+            "dependsOn": "Everstead: Build All Release",
+            "type": "process",
+            "command": "cmake",
+            "args": [
+                "-DVERSION=${input:eversteadClientVersion}",
+                "-P",
+                "${workspaceFolder}/cmake/PackageClientVersion.cmake"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "Everstead: Add Launcher Version to R2",
+            "type": "process",
+            "command": "cmake",
+            "args": [
+                "-DVERSION=${input:eversteadLauncherVersion}",
+                "-P",
+                "${workspaceFolder}/cmake/PackageLauncherVersion.cmake"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "Everstead: Clean Linux Release",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest cmake --build --preset docker-linux-release --target clean",
+            "problemMatcher": [],
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder:latest cmake --build --preset docker-linux-release --target clean",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Prepare ARM64 Docker Build Environment",
+            "type": "shell",
+            "command": "bash -c 'HASH=$(cat Dockerfile | sha256sum | cut -c1-32); CURRENT=$(docker image inspect everstead-builder-arm64:latest --format \"{{index .Config.Labels \\\"everstead.toolchain.hash\\\"}}\" 2>/dev/null || true); if [ \"$CURRENT\" = \"$HASH\" ]; then echo \"ARM64 toolchain image is up to date\"; else docker build --target toolchain-arm64 --build-arg EVERSTEAD_TOOLCHAIN_HASH=\"$HASH\" --tag everstead-builder-arm64:latest .; fi'",
+            "problemMatcher": []
+        },
+        {
+            "label": "Everstead: Configure Linux ARM64 Debug",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-arm64:latest cmake --preset docker-linux-arm64-debug",
+            "dependsOn": "Everstead: Prepare ARM64 Docker Build Environment",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Everstead: Build Linux ARM64 Debug",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-arm64:latest cmake --build --preset docker-linux-arm64-debug --parallel",
+            "dependsOn": "Everstead: Configure Linux ARM64 Debug",
+            "problemMatcher": "$gcc",
+            "group": "build"
+        },
+        {
+            "label": "Everstead: Configure Linux ARM64 Release",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-arm64:latest cmake --preset docker-linux-arm64-release",
+            "dependsOn": "Everstead: Prepare ARM64 Docker Build Environment",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Everstead: Build Linux ARM64 Release",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-arm64:latest cmake --build --preset docker-linux-arm64-release --parallel",
+            "dependsOn": "Everstead: Configure Linux ARM64 Release",
+            "problemMatcher": "$gcc",
+            "group": "build"
+        },
+        {
+            "label": "Everstead: Configure Windows Debug",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-windows:latest cmake --preset docker-windows-debug",
+            "dependsOn": "Everstead: Prepare Windows Docker Build Environment",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-windows:latest /bin/bash -c 'grep -qs \"^CMAKE_HOME_DIRECTORY:INTERNAL=/work$\" build/docker-windows-debug/CMakeCache.txt || rm -rf build/docker-windows-debug; cmake --preset docker-windows-debug'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Build Windows Debug",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-windows:latest cmake --build --preset docker-windows-debug --parallel",
+            "dependsOn": "Everstead: Configure Windows Debug",
+            "problemMatcher": "$gcc",
+            "group": "build",
+            "windows": {
+                "command": "docker run --rm -t --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-windows:latest cmake --build --preset docker-windows-debug --parallel",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Clean Windows Debug",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-windows:latest /bin/bash -lc 'cmake --build --preset docker-windows-debug --target clean && cmake -DTARGET_DIR=${workspaceFolder}/game/bin -DBUILD_ROOT=${workspaceFolder}/build -DMANIFEST_FILE=${workspaceFolder}/build/docker-windows-debug/Everstead-runtime-dependencies.txt -P ${workspaceFolder}/cmake/CleanRuntimeDependencies.cmake'",
+            "problemMatcher": [],
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-windows:latest /bin/bash -lc 'cmake --build --preset docker-windows-debug --target clean && cmake -DTARGET_DIR=/work/game/bin -DBUILD_ROOT=/work/build -DMANIFEST_FILE=/work/build/docker-windows-debug/Everstead-runtime-dependencies.txt -P /work/cmake/CleanRuntimeDependencies.cmake'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Configure Windows Release",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-windows:latest cmake --preset docker-windows-release",
+            "dependsOn": "Everstead: Prepare Windows Docker Build Environment",
+            "problemMatcher": "$gcc",
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-windows:latest /bin/bash -c 'grep -qs \"^CMAKE_HOME_DIRECTORY:INTERNAL=/work$\" build/docker-windows-release/CMakeCache.txt || rm -rf build/docker-windows-release; cmake --preset docker-windows-release'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Build Windows Release",
+            "type": "shell",
+            "command": "docker run --rm -t --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-windows:latest cmake --build --preset docker-windows-release --parallel",
+            "dependsOn": "Everstead: Configure Windows Release",
+            "problemMatcher": "$gcc",
+            "group": "build",
+            "windows": {
+                "command": "docker run --rm -t --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-windows:latest cmake --build --preset docker-windows-release --parallel",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Clean Windows Release",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder-windows:latest /bin/bash -lc 'cmake --build --preset docker-windows-release --target clean && cmake -DTARGET_DIR=${workspaceFolder}/game/bin -DBUILD_ROOT=${workspaceFolder}/build -DMANIFEST_FILE=${workspaceFolder}/build/docker-windows-release/Everstead-runtime-dependencies.txt -P ${workspaceFolder}/cmake/CleanRuntimeDependencies.cmake'",
+            "problemMatcher": [],
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder-windows:latest /bin/bash -lc 'cmake --build --preset docker-windows-release --target clean && cmake -DTARGET_DIR=/work/game/bin -DBUILD_ROOT=/work/build -DMANIFEST_FILE=/work/build/docker-windows-release/Everstead-runtime-dependencies.txt -P /work/cmake/CleanRuntimeDependencies.cmake'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead: Build All Release",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Everstead: Build Linux Release",
+                "Everstead: Build Linux ARM64 Release",
+                "Everstead: Build Windows Release"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Everstead: Build All Debug",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Everstead: Build Linux Debug",
+                "Everstead: Build Linux ARM64 Debug",
+                "Everstead: Build Windows Debug"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Everstead: Clean All Builds",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume \"${workspaceFolder}:${workspaceFolder}\" --workdir \"${workspaceFolder}\" everstead-builder:latest /bin/bash -lc 'cmake -DTARGET_DIR=${workspaceFolder}/game/bin -DBUILD_ROOT=${workspaceFolder}/build -DREMOVE_ALL_RUNTIME_DLLS=ON -P ${workspaceFolder}/cmake/CleanRuntimeDependencies.cmake && cmake -E rm -rf build game/bin/everstead_* game/bin/Everstead game/bin/Everstead.exe game/bin/Everstead-arm64'",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            },
+            "windows": {
+                "command": "docker run --rm --volume \"${workspaceFolder}:/work\" --workdir /work everstead-builder:latest /bin/bash -lc 'cmake -DTARGET_DIR=/work/game/bin -DBUILD_ROOT=/work/build -DREMOVE_ALL_RUNTIME_DLLS=ON -P /work/cmake/CleanRuntimeDependencies.cmake && cmake -E rm -rf build game/bin/everstead_* game/bin/Everstead game/bin/Everstead.exe game/bin/Everstead-arm64'",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        },
+        {
+            "label": "Everstead Backend: Start",
+            "type": "shell",
+            "command": "docker compose up -d --build",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "Everstead Backend: Stop",
+            "type": "shell",
+            "command": "docker compose down",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Everstead Backend: Logs",
+            "type": "shell",
+            "command": "docker compose logs --follow backend",
+            "problemMatcher": [],
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Everstead Backend: Reset Databases",
+            "type": "shell",
+            "command": "docker compose down --volumes && docker compose up -d --build",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "focus": true,
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "Everstead Backend: Test",
+            "type": "shell",
+            "command": "docker run --rm --user \"$(id -u):$(id -g)\" --volume everstead-gocache:/tmp/go --volume \"${workspaceFolder}/backend:/src\" --workdir /src --env GOFLAGS=-mod=mod --env GOPATH=/tmp/go --env GOCACHE=/tmp/go/cache golang:1.26-alpine go test ./...",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "windows": {
+                "command": "docker run --rm --volume everstead-gocache:/tmp/go --volume \"${workspaceFolder}/backend:/src\" --workdir /src --env GOFLAGS=-mod=mod --env GOPATH=/tmp/go --env GOCACHE=/tmp/go/cache golang:1.26-alpine go test ./...",
+                "options": {
+                    "env": {
+                        "MSYS_NO_PATHCONV": "1"
+                    }
+                }
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "eversteadClientVersion",
+            "type": "promptString",
+            "description": "Client and server version to add to r2"
+        },
+        {
+            "id": "eversteadLauncherVersion",
+            "type": "promptString",
+            "description": "Launcher version to add to r2"
+        }
+    ]
+}

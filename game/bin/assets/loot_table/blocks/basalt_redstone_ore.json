@@ -1,0 +1,19 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "redstone",
+                    "count": {
+                        "min": 4,
+                        "max": 5
+                    }
+                }
+            ]
+        }
+    ],
+    "experience": {
+        "min": 1,
+        "max": 5
+    }
+}

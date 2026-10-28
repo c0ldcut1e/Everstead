@@ -1,0 +1,17 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "random_chance",
+                    "chance": 0.125
+                }
+            ],
+            "entries": [
+                {
+                    "name": "wheat_seeds"
+                }
+            ]
+        }
+    ]
+}

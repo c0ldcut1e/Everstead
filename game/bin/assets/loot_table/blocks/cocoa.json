@@ -1,0 +1,33 @@
+{
+    "pools": [
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "max": 1
+                }
+            ],
+            "entries": [
+                {
+                    "name": "cocoa_beans"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "property",
+                    "property": "age",
+                    "value": 2
+                }
+            ],
+            "entries": [
+                {
+                    "name": "cocoa_beans",
+                    "count": 3
+                }
+            ]
+        }
+    ]
+}

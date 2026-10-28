@@ -1,0 +1,22 @@
+{{template "header" .}}
+<div class="forum-page">
+<p class="forum-crumbs"><a href="/forum">Forum</a> / Search</p>
+<h1>Search</h1>
+<form class="forum-search" method="get" action="/forum/search"><input type="search" name="q" value="{{.Forum.Query}}" minlength="2" required><button class="button secondary" type="submit">Search</button></form>
+{{if .Forum.Query}}
+<div class="forum-list">
+    {{range .Forum.Threads}}
+    <a class="forum-row" href="/forum/thread/{{.ThreadID}}">
+        <div>
+            <strong>{{if .Status}}<span class="forum-status">{{.Status}}</span> {{end}}{{.Title}}</strong>
+            <span class="muted">#{{.ThreadID}} in {{.Category}} by {{.Author.Name}}</span>
+        </div>
+        <div class="forum-meta"><span>{{.ReplyCount}} replies</span></div>
+    </a>
+    {{else}}
+    <p class="muted forum-empty">Nothing found.</p>
+    {{end}}
+</div>
+{{end}}
+</div>
+{{template "footer" .}}

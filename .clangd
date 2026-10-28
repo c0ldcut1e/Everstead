@@ -1,0 +1,31 @@
+If:
+  PathMatch: launcher/.*
+CompileFlags:
+  CompilationDatabase: build/docker-launcher-linux-debug
+  Add:
+    - -isystem
+    - /usr/include/qt6
+    - -isystem
+    - /usr/include/qt6/QtCore
+    - -isystem
+    - /usr/include/qt6/QtGui
+    - -isystem
+    - /usr/include/qt6/QtNetwork
+    - -isystem
+    - /usr/include/qt6/QtQml
+    - -isystem
+    - /usr/include/qt6/QtQuick
+---
+If:
+  PathExclude: launcher/.*
+CompileFlags:
+  CompilationDatabase: build/docker-linux-release
+---
+If:
+  PathMatch: game/third_party/.*
+Diagnostics:
+  Suppress: "*"
+  UnusedIncludes: None
+  MissingIncludes: None
+  ClangTidy:
+    Remove: "*"

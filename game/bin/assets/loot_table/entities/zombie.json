@@ -1,0 +1,37 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "rotten_flesh",
+                    "count": {
+                        "min": 0,
+                        "max": 2
+                    }
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "killed_by_player"
+                },
+                {
+                    "condition": "random_chance",
+                    "chance": 0.025
+                }
+            ],
+            "entries": [
+                {
+                    "name": "iron_ingot"
+                },
+                {
+                    "name": "carrot"
+                },
+                {
+                    "name": "potato"
+                }
+            ]
+        }
+    ]
+}

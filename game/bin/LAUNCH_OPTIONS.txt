@@ -1,0 +1,62 @@
+Everstead launch options
+========================
+
+Command line arguments
+----------------------
+
+--server <host[:port]>
+--server=<host[:port]>
+    Connects to a different Everstead backend instead of the official one.
+    The port defaults to 8088 if you leave it out.
+    Example: everstead_release_x86-64_linux --server=127.0.0.1:8088
+
+
+Environment variables
+---------------------
+
+EVERSTEAD_SERVER=<host[:port]>
+    Same as --server.
+
+EVERSTEAD_MEMORY=<megabytes>
+    Sets how much memory the game allows itself to use. Default is 2048.
+    Example: EVERSTEAD_MEMORY=4096
+
+EVERSTEAD_PROFILE=<milliseconds>
+    Turns on the frame profiler and logs every frame that takes longer
+    than the given time. Default threshold is 12.
+
+EVERSTEAD_PROFILE_INTERVAL=<milliseconds>
+    How long the profiler averages frame times over. Default is 500.
+
+EVERSTEAD_PROFILE_HOLD=<milliseconds>
+    How long the profiler keeps showing the worst frame before resetting
+    it. Default is 10000.
+
+EVERSTEAD_VULKAN_VALIDATION=1
+    Enables the Vulkan validation layers if they are installed.
+    Only useful for debugging.
+
+EVERSTEAD_GL_DEBUG=1
+    Creates an OpenGL debug context and logs driver messages.
+    Only useful for debugging.
+
+EVERSTEAD_CRASH_DUMP=1
+    Writes a crash report to the logs folder when the game crashes, and a
+    hang report when a frame takes longer than 8 seconds. On Windows these
+    are .dmp files, on Linux they are .txt backtraces.
+    Only useful for debugging.
+
+
+How to set environment variables
+--------------------------------
+
+Linux:
+    EVERSTEAD_MEMORY=4096 ./everstead_release_x86-64_linux
+
+Windows (cmd):
+    set EVERSTEAD_MEMORY=4096
+    everstead_release_x86-64_win.exe
+
+Windows (PowerShell):
+    $env:EVERSTEAD_MEMORY=4096
+    .\everstead_release_x86-64_win.exe

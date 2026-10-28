@@ -1,0 +1,41 @@
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(std140, set = 0, binding = 0) uniform PyramidParams
+{
+    vec4 u_source;
+    vec4 u_destination;
+};
+
+layout(std430, set = 0, binding = 1) buffer Pyramid
+{
+    float depths[];
+};
+
+layout(set = 0, binding = 2) uniform sampler2D u_depth;
+
+void main()
+{
+    // These are ints bit cast into floats because flattened blocks hold one type
+    ivec4 source      = floatBitsToInt(u_source);
+    ivec4 destination = floatBitsToInt(u_destination);
+    int index         = int(gl_GlobalInvocationID.x);
+    if (index >= destination.y * destination.z)
+    {
+        return;
+    }
+
+    ivec2 first = ivec2(index % destination.y, index / destination.y) * source.w;
+    ivec2 last  = min(first + source.w, source.yz) - 1;
+    float depth = 0.0;
+    for (int y = first.y; y <= last.y; y++)
+    {
+        for (int x = first.x; x <= last.x; x++)
+        {
+            depth = max(depth, destination.w != 0 ? texelFetch(u_depth, ivec2(x, y), 0).r : depths[source.x + y * source.y + x]);
+        }
+    }
+
+    depths[destination.x + index] = depth;
+}

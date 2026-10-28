@@ -1,0 +1,43 @@
+{
+    "pools": [
+        {
+            "rolls": {
+                "min": 4,
+                "max": 7
+            },
+            "entries": [
+                { "name": "bread", "weight": 15, "count": { "min": 1, "max": 3 } },
+                { "name": "wheat", "weight": 10, "count": { "min": 1, "max": 4 } },
+                { "name": "bone", "weight": 10, "count": { "min": 1, "max": 6 } },
+                { "name": "rotten_flesh", "weight": 10, "count": { "min": 1, "max": 6 } },
+                { "name": "string", "weight": 10, "count": { "min": 1, "max": 4 } },
+                { "name": "gunpowder", "weight": 10, "count": { "min": 1, "max": 4 } },
+                { "name": "coal", "weight": 10, "count": { "min": 2, "max": 8 } },
+                { "name": "arrow", "weight": 8, "count": { "min": 4, "max": 12 } },
+                { "name": "iron_ingot", "weight": 10, "count": { "min": 1, "max": 4 } },
+                { "name": "lapis_lazuli", "weight": 6, "count": { "min": 2, "max": 7 } },
+                { "name": "beetroot_seeds", "weight": 5, "count": { "min": 2, "max": 4 } },
+                { "name": "melon_seeds", "weight": 5, "count": { "min": 2, "max": 4 } },
+                { "name": "pumpkin_seeds", "weight": 5, "count": { "min": 2, "max": 4 } },
+                { "name": "bucket", "weight": 8 }
+            ]
+        },
+        {
+            "rolls": {
+                "min": 1,
+                "max": 2
+            },
+            "entries": [
+                { "name": "gold_ingot", "weight": 15, "count": { "min": 1, "max": 4 } },
+                { "name": "lead", "weight": 10 },
+                { "name": "bow", "weight": 10 },
+                { "name": "iron_sword", "weight": 8 },
+                { "name": "iron_pickaxe", "weight": 6 },
+                { "name": "emerald", "weight": 6, "count": { "min": 1, "max": 3 } },
+                { "name": "golden_sword", "weight": 5 },
+                { "name": "diamond", "weight": 3, "count": { "min": 1, "max": 2 } },
+                { "type": "empty", "weight": 20 }
+            ]
+        }
+    ]
+}

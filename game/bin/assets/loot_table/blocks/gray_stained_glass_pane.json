@@ -1,0 +1,15 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "glass_shard",
+                    "count": {
+                        "min": 0,
+                        "max": 1
+                    }
+                }
+            ]
+        }
+    ]
+}

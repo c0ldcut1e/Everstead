@@ -1,0 +1,15 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "diamond"
+                }
+            ]
+        }
+    ],
+    "experience": {
+        "min": 3,
+        "max": 7
+    }
+}

@@ -1,0 +1,34 @@
+{{template "header" .}}
+<div class="forum-page">
+<p class="forum-crumbs"><a href="/forum">Forum</a> / {{.Forum.Category.Name}}</p>
+<div class="forum-heading">
+    <h1>{{.Forum.Category.Name}}</h1>
+    {{if .Account}}<a class="button" href="/forum/new?category={{.Forum.Category.Slug}}">New thread</a>{{end}}
+</div>
+<p class="muted">{{.Forum.Category.Description}}</p>
+{{if .Forum.Category.Votes}}<p class="forum-sort">Sort by {{if .Forum.Top}}<a href="?">Latest</a> <strong>Top</strong>{{else}}<strong>Latest</strong> <a href="?sort=top">Top</a>{{end}}</p>{{end}}
+<div class="forum-list">
+    {{range .Forum.Threads}}
+    <a class="forum-row" href="/forum/thread/{{.ThreadID}}">
+        <div>
+            <strong>{{if .Pinned}}<span class="forum-status">Pinned</span> {{end}}{{if .Status}}<span class="forum-status">{{.Status}}</span> {{end}}{{if .Locked}}<span class="forum-status locked">Locked</span> {{end}}{{.Title}}</strong>
+            <span class="muted">#{{.ThreadID}} by {{.Author.Name}} on {{.CreatedAt.Format "2006-01-02"}}</span>
+        </div>
+        <div class="forum-meta">
+            <span>{{if $.Forum.Category.Votes}}{{.VoteCount}} votes, {{end}}{{.ReplyCount}} replies</span>
+            <span class="muted">{{.LastPostAt.Format "2006-01-02 15:04"}} UTC</span>
+        </div>
+    </a>
+    {{else}}
+    <p class="muted forum-empty">No threads yet.</p>
+    {{end}}
+</div>
+{{if gt .Forum.Pages 1}}
+<p class="forum-pages">
+    {{if gt .Forum.Page 1}}<a href="?page={{.Forum.PrevPage}}{{if .Forum.Top}}&amp;sort=top{{end}}">Previous</a>{{end}}
+    <span class="muted">Page {{.Forum.Page}} of {{.Forum.Pages}}</span>
+    {{if lt .Forum.Page .Forum.Pages}}<a href="?page={{.Forum.NextPage}}{{if .Forum.Top}}&amp;sort=top{{end}}">Next</a>{{end}}
+</p>
+{{end}}
+</div>
+{{template "footer" .}}

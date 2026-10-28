@@ -1,0 +1,18 @@
+{{template "header" .}}
+<div class="score-page">
+<h1>Bug score</h1>
+<p class="muted">Score a bug or exploit in Everstead from 0 to 10. Pick one value per metric or paste a score vector.</p>
+<section class="score-score">
+    <div>
+        <span class="score-number" id="score-number">0.0</span>
+        <span class="score-severity" id="score-severity">None</span>
+    </div>
+    <div class="score-vector">
+        <label for="score-vector">Vector</label>
+        <input id="score-vector" spellcheck="false" autocomplete="off">
+    </div>
+</section>
+<section class="score-groups" id="score-metrics"></section>
+</div>
+<script src="{{static "score.js"}}"></script>
+{{template "footer" .}}

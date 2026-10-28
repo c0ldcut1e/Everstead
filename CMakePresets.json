@@ -1,0 +1,218 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "docker-base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_COLOR_DIAGNOSTICS": "ON",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "docker-linux-debug",
+            "inherits": "docker-base",
+            "displayName": "Docker Linux Debug (Clang)",
+            "description": "Linux debug build using Clang in the Everstead Docker toolchain.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
+            "name": "docker-linux-release",
+            "inherits": "docker-base",
+            "displayName": "Docker Linux Release (Clang)",
+            "description": "Linux release build using Clang in the Everstead Docker toolchain.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
+            "name": "docker-launcher-linux-debug",
+            "inherits": "docker-base",
+            "displayName": "Docker Launcher Linux Debug (Clang)",
+            "description": "Linux debug build of the Everstead launcher using Clang in Docker.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "EVERSTEAD_BUILD_CLIENT": "OFF",
+                "EVERSTEAD_BUILD_LAUNCHER": "ON"
+            }
+        },
+        {
+            "name": "docker-launcher-linux-release",
+            "inherits": "docker-base",
+            "displayName": "Docker Launcher Linux Release (Clang)",
+            "description": "Linux release build of the Everstead launcher using Clang in Docker.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "EVERSTEAD_BUILD_CLIENT": "OFF",
+                "EVERSTEAD_BUILD_LAUNCHER": "ON"
+            }
+        },
+        {
+            "name": "docker-linux-arm64-debug",
+            "inherits": "docker-base",
+            "displayName": "Docker Linux ARM64 Debug (GCC)",
+            "description": "Linux ARM64 debug cross-build using GCC in Docker.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux-aarch64.cmake"
+            }
+        },
+        {
+            "name": "docker-linux-arm64-release",
+            "inherits": "docker-base",
+            "displayName": "Docker Linux ARM64 Release (GCC)",
+            "description": "Linux ARM64 release cross-build using GCC in Docker.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/linux-aarch64.cmake"
+            }
+        },
+        {
+            "name": "docker-launcher-linux-arm64-debug",
+            "inherits": "docker-linux-arm64-debug",
+            "displayName": "Docker Launcher Linux ARM64 Debug (GCC)",
+            "description": "Linux ARM64 debug cross-build of the Everstead launcher.",
+            "cacheVariables": {
+                "EVERSTEAD_BUILD_CLIENT": "OFF",
+                "EVERSTEAD_BUILD_LAUNCHER": "ON"
+            }
+        },
+        {
+            "name": "docker-launcher-linux-arm64-release",
+            "inherits": "docker-linux-arm64-release",
+            "displayName": "Docker Launcher Linux ARM64 Release (GCC)",
+            "description": "Linux ARM64 release cross-build of the Everstead launcher.",
+            "cacheVariables": {
+                "EVERSTEAD_BUILD_CLIENT": "OFF",
+                "EVERSTEAD_BUILD_LAUNCHER": "ON"
+            }
+        },
+        {
+            "name": "docker-windows-debug",
+            "inherits": "docker-base",
+            "displayName": "Docker Windows Debug (MinGW-w64)",
+            "description": "Windows debug cross-build using MinGW-w64 and vcpkg in Docker.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "/opt/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/windows-mingw-w64.cmake",
+                "VCPKG_APPLOCAL_DEPS": "OFF",
+                "VCPKG_INSTALLED_DIR": "/opt/vcpkg/installed",
+                "VCPKG_MANIFEST_MODE": "OFF",
+                "VCPKG_TARGET_TRIPLET": "x64-mingw-static"
+            }
+        },
+        {
+            "name": "docker-windows-release",
+            "inherits": "docker-base",
+            "displayName": "Docker Windows Release (MinGW-w64)",
+            "description": "Windows release cross-build using MinGW-w64 and vcpkg in Docker.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "/opt/vcpkg/scripts/buildsystems/vcpkg.cmake",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchains/windows-mingw-w64.cmake",
+                "VCPKG_APPLOCAL_DEPS": "OFF",
+                "VCPKG_INSTALLED_DIR": "/opt/vcpkg/installed",
+                "VCPKG_MANIFEST_MODE": "OFF",
+                "VCPKG_TARGET_TRIPLET": "x64-mingw-static"
+            }
+        },
+        {
+            "name": "docker-launcher-windows-debug",
+            "inherits": "docker-windows-debug",
+            "displayName": "Docker Launcher Windows Debug (MinGW-w64)",
+            "description": "Windows debug cross-build of the Everstead launcher.",
+            "cacheVariables": {
+                "EVERSTEAD_BUILD_CLIENT": "OFF",
+                "EVERSTEAD_BUILD_LAUNCHER": "ON",
+                "CMAKE_FIND_ROOT_PATH": "/opt/qt-windows",
+                "QT_HOST_PATH": "/usr",
+                "QT_HOST_PATH_CMAKE_DIR": "/usr/lib/x86_64-linux-gnu/cmake",
+                "Qt6_DIR": "/opt/qt-windows/lib/cmake/Qt6",
+                "VCPKG_INSTALLED_DIR": "/opt/vcpkg/launcher-installed"
+            }
+        },
+        {
+            "name": "docker-launcher-windows-release",
+            "inherits": "docker-windows-release",
+            "displayName": "Docker Launcher Windows Release (MinGW-w64)",
+            "description": "Windows release cross-build of the Everstead launcher.",
+            "cacheVariables": {
+                "EVERSTEAD_BUILD_CLIENT": "OFF",
+                "EVERSTEAD_BUILD_LAUNCHER": "ON",
+                "CMAKE_FIND_ROOT_PATH": "/opt/qt-windows",
+                "QT_HOST_PATH": "/usr",
+                "QT_HOST_PATH_CMAKE_DIR": "/usr/lib/x86_64-linux-gnu/cmake",
+                "Qt6_DIR": "/opt/qt-windows/lib/cmake/Qt6",
+                "VCPKG_INSTALLED_DIR": "/opt/vcpkg/launcher-installed"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "docker-linux-debug",
+            "configurePreset": "docker-linux-debug"
+        },
+        {
+            "name": "docker-linux-release",
+            "configurePreset": "docker-linux-release"
+        },
+        {
+            "name": "docker-launcher-linux-debug",
+            "configurePreset": "docker-launcher-linux-debug"
+        },
+        {
+            "name": "docker-launcher-linux-release",
+            "configurePreset": "docker-launcher-linux-release"
+        },
+        {
+            "name": "docker-linux-arm64-debug",
+            "configurePreset": "docker-linux-arm64-debug"
+        },
+        {
+            "name": "docker-linux-arm64-release",
+            "configurePreset": "docker-linux-arm64-release"
+        },
+        {
+            "name": "docker-launcher-linux-arm64-debug",
+            "configurePreset": "docker-launcher-linux-arm64-debug"
+        },
+        {
+            "name": "docker-launcher-linux-arm64-release",
+            "configurePreset": "docker-launcher-linux-arm64-release"
+        },
+        {
+            "name": "docker-windows-debug",
+            "configurePreset": "docker-windows-debug"
+        },
+        {
+            "name": "docker-windows-release",
+            "configurePreset": "docker-windows-release"
+        },
+        {
+            "name": "docker-launcher-windows-debug",
+            "configurePreset": "docker-launcher-windows-debug"
+        },
+        {
+            "name": "docker-launcher-windows-release",
+            "configurePreset": "docker-launcher-windows-release"
+        }
+    ]
+}

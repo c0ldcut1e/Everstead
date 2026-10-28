@@ -1,0 +1,60 @@
+# Production deployment for the Everstead backend. This is intentionally
+# separate from docker-compose.yml, which also exposes local database tools for
+# development.
+name: everstead
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: everstead
+      MONGO_INITDB_ROOT_PASSWORD: ${EVERSTEAD_MONGO_PASSWORD:?Set EVERSTEAD_MONGO_PASSWORD in .env}
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: everstead
+      POSTGRES_PASSWORD: ${EVERSTEAD_POSTGRES_PASSWORD:?Set EVERSTEAD_POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: everstead
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U everstead -d everstead"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      EVERSTEAD_LISTEN_ADDRESS: ":8088"
+      EVERSTEAD_RENDEZVOUS_ADDRESS: ":37373"
+      EVERSTEAD_PUBLIC_HOST: ${EVERSTEAD_PUBLIC_HOST:?Set EVERSTEAD_PUBLIC_HOST in .env}
+      EVERSTEAD_DISCOURSE_SECRET: ${EVERSTEAD_DISCOURSE_SECRET:-}
+      EVERSTEAD_MONGO_URI: mongodb://everstead:${EVERSTEAD_MONGO_PASSWORD}@mongo:27017/?authSource=admin
+      EVERSTEAD_MONGO_DATABASE: everstead
+      EVERSTEAD_POSTGRES_URL: postgres://everstead:${EVERSTEAD_POSTGRES_PASSWORD}@postgres:5432/everstead?sslmode=disable
+    ports:
+      - "8088:8088"
+      - "37373:37373/udp"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
+  postgres-data:

@@ -1,0 +1,32 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "feather",
+                    "count": {
+                        "min": 0,
+                        "max": 2
+                    }
+                }
+            ]
+        },
+        {
+            "entries": [
+                {
+                    "name": "chicken",
+                    "functions": [
+                        {
+                            "function": "furnace_smelt",
+                            "conditions": [
+                                {
+                                    "condition": "on_fire"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

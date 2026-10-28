@@ -1,0 +1,107 @@
+{{template "header" .}}
+<div class="forum-page">
+{{with .Admin.Target}}
+<p class="forum-crumbs"><a href="/admin">Admin</a> / {{.Username}}</p>
+<h1>{{.Username}}{{if .BuiltIn}} <span class="forum-badge">Built in</span>{{end}}{{if .Disabled}} <span class="forum-status locked">Disabled</span>{{end}}</h1>
+{{if $.Admin.Password}}<p class="notice">The new password is <code>{{$.Admin.Password}}</code>. It is only shown once.</p>{{end}}
+<table class="admin-table">
+    <tr><th>Player ID</th><td>{{.Pid}}</td></tr>
+    <tr><th>Email</th><td>{{.Email}}</td></tr>
+    <tr><th>Role</th><td>{{if eq .Permission 2}}Admin{{else if eq .Permission 1}}Moderator{{else}}User{{end}}</td></tr>
+    <tr><th>Forum title</th><td>{{.ForumTitle}}</td></tr>
+    <tr><th>Created</th><td>{{.CreatedAt.Format "2006-01-02 15:04"}} UTC</td></tr>
+    <tr><th>Username changed</th><td>{{if not .UsernameChangedAt.IsZero}}{{.UsernameChangedAt.Format "2006-01-02 15:04"}} UTC{{end}}</td></tr>
+    <tr><th>Forum</th><td>{{$.Admin.Stats.Threads}} threads, {{$.Admin.Stats.Posts}} posts, <a href="/forum/user/{{.Username}}">profile</a></td></tr>
+    <tr><th>Muted</th><td>{{if $.Admin.Muted}}Until {{.MutedUntil.Format "2006-01-02 15:04"}} UTC{{if .MuteReason}} for {{.MuteReason}}{{end}}{{else}}No{{end}}</td></tr>
+    <tr><th>Install IDs</th><td>{{range .LinkedInstallIds}}<code>{{.}}</code> {{end}}</td></tr>
+    <tr><th>Addresses</th><td>{{range .LinkedAddresses}}<code>{{.}}</code> {{end}}</td></tr>
+    <tr><th>Servers</th><td>{{range $.Admin.Servers}}{{.Name}} {{end}}</td></tr>
+</table>
+
+<h2>Manage</h2>
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/title">
+    <input name="value" type="text" maxlength="24" value="{{.ForumTitle}}" placeholder="Forum title, like Developer">
+    <button class="button secondary" type="submit">Set title</button>
+</form>
+<form method="post" action="/admin/account/{{.Pid}}/capes">
+    <div class="cape-grid">
+        {{range $.Capes}}
+        <label class="cape-option">
+            <input type="checkbox" name="cape" value="{{.ID}}"{{if .Unlocked}} checked{{end}}>
+            <span class="cape-thumb" style="background-image: url(/static/capes/{{.File}}.png)"></span>
+            <span>{{.Name}}{{if .Selected}} <span class="muted">(worn)</span>{{end}}</span>
+        </label>
+        {{end}}
+    </div>
+    <button class="button secondary" type="submit">Set capes</button>
+</form>
+{{if $.Admin.CanManage}}
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/role">
+    <select name="value">
+        <option value="0"{{if eq .Permission 0}} selected{{end}}>User</option>
+        <option value="1"{{if eq .Permission 1}} selected{{end}}>Moderator</option>
+        {{if $.Account.BuiltIn}}<option value="2"{{if eq .Permission 2}} selected{{end}}>Admin</option>{{end}}
+    </select>
+    <button class="button secondary" type="submit">Set role</button>
+</form>
+<form class="forum-tools" method="post" action="/forum/user/{{.Pid}}/mute">
+    <input type="hidden" name="return" value="/admin/account/{{.Pid}}">
+    <select name="duration">
+        <option value="1h">1 hour</option><option value="1d">1 day</option><option value="7d">7 days</option><option value="30d">30 days</option><option value="permanent">Permanent</option><option value="none">Unmute</option>
+    </select>
+    <input name="reason" type="text" maxlength="200" placeholder="Reason">
+    <button class="button secondary" type="submit">Mute</button>
+</form>
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/username">
+    <input name="value" type="text" value="{{.Username}}" required>
+    <button class="button secondary" type="submit">Change username</button>
+</form>
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/email">
+    <input name="value" type="email" value="{{.Email}}" required>
+    <button class="button secondary" type="submit">Change email</button>
+</form>
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/{{if .Disabled}}enable{{else}}disable{{end}}">
+    <button class="button secondary" type="submit">{{if .Disabled}}Enable account{{else}}Disable account{{end}}</button>
+</form>
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/password" onsubmit="return confirm('Reset the password and sign the account out everywhere?')">
+    <button class="button secondary" type="submit">Reset password</button>
+</form>
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/sessions">
+    <button class="button secondary" type="submit">Sign out everywhere</button>
+</form>
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/purge" onsubmit="return confirm('Delete every post and thread by this account?')">
+    <button class="button secondary" type="submit">Delete all forum posts</button>
+</form>
+<form class="forum-tools" method="post" action="/admin/account/{{.Pid}}/delete">
+    <input name="value" type="text" placeholder="Type {{.Username}} to confirm" required>
+    <button class="button danger" type="submit">Delete account</button>
+</form>
+{{else}}
+<p class="muted">You cannot change this account's role, status or login details.</p>
+{{end}}
+{{end}}
+
+<h2>Sessions</h2>
+<table class="admin-table">
+    <tr><th>Install</th><th>Address</th><th>Created</th><th>Expires</th></tr>
+    {{range .Admin.Sessions}}
+    <tr><td><code>{{.InstallID}}</code></td><td>{{.Address}}</td><td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td><td>{{.RefreshExpiresAt.Format "2006-01-02 15:04"}}</td></tr>
+    {{else}}
+    <tr><td colspan="4" class="muted">No active sessions.</td></tr>
+    {{end}}
+</table>
+
+<h2>Logins</h2>
+<table class="admin-table">
+    <tr><th>When</th><th>Address</th><th>Result</th></tr>
+    {{range .Admin.Logins}}
+    <tr><td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td><td>{{.Address}}</td><td>{{if .Succeeded}}OK{{else}}Failed {{.Code}}{{end}}</td></tr>
+    {{else}}
+    <tr><td colspan="3" class="muted">No logins recorded.</td></tr>
+    {{end}}
+</table>
+
+<h2>Mod log</h2>
+{{template "modlog" .Admin.Log}}
+</div>
+{{template "footer" .}}

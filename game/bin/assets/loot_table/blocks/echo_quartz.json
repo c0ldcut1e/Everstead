@@ -1,0 +1,24 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "echo_quartz"
+                }
+            ]
+        },
+        {
+            "conditions": [
+                {
+                    "condition": "random_chance",
+                    "chance": 0.02
+                }
+            ],
+            "entries": [
+                {
+                    "name": "echo_seed"
+                }
+            ]
+        }
+    ]
+}

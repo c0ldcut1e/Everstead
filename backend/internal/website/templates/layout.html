@@ -1,0 +1,35 @@
+{{define "header"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="{{static "style.css"}}">
+</head>
+<body>
+<header class="bar">
+    <a class="brand" href="/">Everstead</a>
+    <nav>
+        <a href="https://forum.plasnet.org">Forum</a>
+        {{if .Account}}{{if ge .Account.Permission 2}}<a href="/admin">Admin</a>{{end}}{{end}}
+        <a href="/versions">Versions</a>
+        <a href="/score">Bug score</a>
+        {{if .Account}}
+            <a href="/account">{{.Account.Username}}</a>
+            <form method="post" action="/logout"><button type="submit" class="link">Sign out</button></form>
+        {{else}}
+            <a href="/login">Sign in</a>
+            <a href="/register">Create an account</a>
+        {{end}}
+    </nav>
+</header>
+<main>
+{{if .Error}}<p class="error">{{.Error}}</p>{{end}}
+{{if .Notice}}<p class="notice">{{.Notice}}</p>{{end}}
+{{end}}
+
+{{define "footer"}}
+</main>
+</body>
+</html>
+{{end}}

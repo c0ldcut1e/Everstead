@@ -1,0 +1,129 @@
+#ifndef EVERSTEAD_DEDICATED_SERVER
+
+#include "SdlEventBridge.h"
+
+#include <SDL2/SDL.h>
+
+#include "../../input/SdlControllerBackend.h"
+#include "../../ui/imgui/imgui_impl_sdl2.h"
+#include "EventManager.h"
+#include "KeyPressedEvent.h"
+#include "KeyReleasedEvent.h"
+#include "MouseButtonPressedEvent.h"
+#include "MouseButtonReleasedEvent.h"
+#include "MouseMovedEvent.h"
+#include "MouseWheelEvent.h"
+#include "TextInputEvent.h"
+#include "WindowCloseEvent.h"
+#include "WindowResizedEvent.h"
+
+static bool s_first         = true;
+static SDL_Window *s_window = nullptr;
+
+void InitSdlEventBridge(void *windowHandle)
+{
+    s_window = (SDL_Window *) windowHandle;
+}
+
+void ResetSdlMouseState()
+{
+    s_first = true;
+}
+
+void PumpSdlEvents()
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
+    {
+        ImGui_ImplSDL2_ProcessEvent(&event);
+
+        switch (event.type)
+        {
+            case SDL_QUIT: {
+                EventManager::Push(new WindowCloseEvent());
+                break;
+            }
+
+            case SDL_KEYDOWN: {
+                if (event.key.repeat == 0 ||
+                    (SDL_IsTextInputActive() &&
+                     (event.key.keysym.scancode == SDL_SCANCODE_BACKSPACE || event.key.keysym.scancode == SDL_SCANCODE_DELETE ||
+                      event.key.keysym.scancode == SDL_SCANCODE_LEFT || event.key.keysym.scancode == SDL_SCANCODE_RIGHT)))
+                {
+                    EventManager::Push(new KeyPressedEvent(event.key.keysym.scancode));
+                }
+
+                break;
+            }
+
+            case SDL_KEYUP: {
+                EventManager::Push(new KeyReleasedEvent(event.key.keysym.scancode));
+                break;
+            }
+
+            case SDL_TEXTINPUT: {
+                EventManager::Push(new TextInputEvent(event.text.text));
+                break;
+            }
+
+            case SDL_MOUSEBUTTONDOWN: {
+                EventManager::Push(new MouseButtonPressedEvent(event.button.button));
+                break;
+            }
+
+            case SDL_MOUSEBUTTONUP: {
+                EventManager::Push(new MouseButtonReleasedEvent(event.button.button));
+                break;
+            }
+
+            case SDL_MOUSEMOTION: {
+                if (s_first)
+                {
+                    s_first = false;
+                    break;
+                }
+
+                EventManager::Push(new MouseMovedEvent((double) event.motion.xrel, (double) -event.motion.yrel));
+                break;
+            }
+
+            case SDL_MOUSEWHEEL: {
+                EventManager::Push(new MouseWheelEvent(event.wheel.y));
+                break;
+            }
+
+            case SDL_CONTROLLERDEVICEADDED:
+            case SDL_CONTROLLERDEVICEREMOVED:
+            case SDL_JOYDEVICEADDED:
+            case SDL_JOYDEVICEREMOVED: {
+                SdlControllerBackend::RequestDeviceRescan();
+                break;
+            }
+
+            case SDL_WINDOWEVENT: {
+                if (event.window.event == SDL_WINDOWEVENT_CLOSE)
+                {
+                    EventManager::Push(new WindowCloseEvent());
+                }
+                else if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED || event.window.event == SDL_WINDOWEVENT_RESIZED)
+                {
+                    int width  = event.window.data1;
+                    int height = event.window.data2;
+
+                    if (width > 0 && height > 0)
+                    {
+                        EventManager::Push(new WindowResizedEvent(width, height));
+                    }
+                }
+
+                break;
+            }
+
+            default: {
+                break;
+            }
+        }
+    }
+}
+
+#endif

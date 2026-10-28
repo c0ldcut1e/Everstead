@@ -1,0 +1,15 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "resonant_shard",
+                    "count": {
+                        "min": 3,
+                        "max": 5
+                    }
+                }
+            ]
+        }
+    ]
+}

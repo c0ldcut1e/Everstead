@@ -1,0 +1,40 @@
+{{template "header" .}}
+<div class="forum-page">
+<p class="forum-crumbs"><a href="/forum">Forum</a> / Moderation</p>
+<h1>Reports</h1>
+<div class="forum-list">
+    {{range .Forum.Reports}}
+    <div class="forum-row">
+        <div>
+            <strong><a href="/forum/thread/{{.ThreadID}}#post-{{.PostID}}">{{if .ThreadTitle}}{{.ThreadTitle}}{{else}}#{{.ThreadID}}{{end}}</a></strong>
+            <span>{{.Reason}}</span>
+            <span class="muted">Reported by {{.Reporter}} on {{.CreatedAt.Format "2006-01-02 15:04"}} UTC</span>
+            {{if .Excerpt}}<span class="muted">{{.Excerpt}}</span>{{end}}
+        </div>
+        <form class="forum-meta" method="post" action="/forum/report/{{.ReportID}}/resolve"><button class="button secondary" type="submit">Resolve</button></form>
+    </div>
+    {{else}}
+    <p class="muted forum-empty">No open reports.</p>
+    {{end}}
+</div>
+<h2>Mod log</h2>
+{{template "modlog" .Forum.Log}}
+</div>
+{{template "footer" .}}
+
+{{define "modlog"}}
+<table class="admin-table">
+    <tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Detail</th></tr>
+    {{range .}}
+    <tr>
+        <td>{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+        <td>{{.Actor}}</td>
+        <td>{{.Action}}</td>
+        <td>{{if .TargetPid}}{{.Target}}{{end}}{{if .ThreadID}} <a href="/forum/thread/{{.ThreadID}}{{if .PostID}}#post-{{.PostID}}{{end}}">#{{.ThreadID}}</a>{{end}}</td>
+        <td>{{.Detail}}</td>
+    </tr>
+    {{else}}
+    <tr><td colspan="5" class="muted">Nothing yet.</td></tr>
+    {{end}}
+</table>
+{{end}}

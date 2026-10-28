@@ -1,0 +1,15 @@
+{
+    "pools": [
+        {
+            "entries": [
+                {
+                    "name": "melon_slice",
+                    "count": {
+                        "min": 3,
+                        "max": 7
+                    }
+                }
+            ]
+        }
+    ]
+}
