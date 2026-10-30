@@ -1851,8 +1851,13 @@ bool LocalPlayer::PlaceBlock(const BlockPos &pos, Direction *face, const glm::dv
 
             for (size_t j = 0; j < entities.size(); j++)
             {
-                if (entities[j]->GetType() != eEntityType_Item &&
-                    blockBox.Intersects(entities[j]->GetBoundingBox().Translated(entities[j]->GetPosition())))
+                glm::dvec3 entityPos = entities[j]->GetPosition();
+                if (entities[j]->GetType() == eEntityType_Minecart)
+                {
+                    entityPos.y -= Minecart::kClientBoxOffset;
+                }
+
+                if (entities[j]->BlocksBuilding() && blockBox.Intersects(entities[j]->GetBoundingBox().Translated(entityPos)))
                 {
                     return false;
                 }

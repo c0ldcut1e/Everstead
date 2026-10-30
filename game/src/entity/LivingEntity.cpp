@@ -22,6 +22,7 @@ const float LivingEntity::s_moveThresholdSquared = 0.0025f;
 
 LivingEntity::LivingEntity(Level *level) : Entity(level)
 {
+    m_blocksBuilding     = true;
     m_swinging           = false;
     m_swingTime          = 0;
     m_attackAnim         = 0.0f;

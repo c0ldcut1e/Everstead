@@ -19,12 +19,6 @@ FarmlandBlock::FarmlandBlock(const std::string &texturePath, const std::string &
     SetAABB(AABB(glm::dvec3(0.0, 0.0, 0.0), glm::dvec3(1.0, 15.0 / 16.0, 1.0)));
 }
 
-void FarmlandBlock::GetCollisionBoxes(uint16_t data, std::vector<AABB> *out) const
-{
-    (void) data;
-    out->push_back(AABB(glm::dvec3(0.0, 0.0, 0.0), glm::dvec3(1.0, 1.0, 1.0)));
-}
-
 Block::UVRect FarmlandBlock::GetBoxFaceAtlasUVRect(uint16_t data, const AABB &box, Direction *direction, bool *flipU) const
 {
     (void) box;

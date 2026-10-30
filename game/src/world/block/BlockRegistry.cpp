@@ -2262,6 +2262,7 @@ void BlockRegistry::Init()
     Block::ByName("sweet_berry_bush")->SetDestroyTime(0.0f);
     Block::ByName("sweet_berry_bush")->SetTool(Block::eToolType_None, false, 0);
     Block::ByName("sweet_berry_bush")->SetFlammable(60, 100);
+    Block::ByName("lily_pad")->SetDestroyTime(0.0f);
     Block::ByName("bamboo")->SetDestroyTime(1.0f);
     Block::ByName("bamboo")->SetTool(Block::eToolType_Axe, false, 0);
     Block::ByName("bamboo_sapling")->SetDestroyTime(1.0f);

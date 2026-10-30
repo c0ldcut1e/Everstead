@@ -341,6 +341,9 @@ local std = {
 local classes = {}
 local classesByType = {}
 local loadClass
+local toLua
+local wrapList
+local ModList
 
 local function abiType(param)
     if param.kind == "v" then
@@ -359,7 +362,146 @@ local function destroyer(address)
     return ffi.cast("void(*)(void*)", address)
 end
 
-local function toLua(param, value)
+local toC
+local containers = {}
+
+local function containerOf(param)
+    local data = param.container
+    local container = containers[data.address]
+    if container then
+        return container
+    end
+
+    local function cast(signature, address)
+        return address ~= 0 and ffi.cast(signature, address) or nil
+    end
+    container = {
+        address = data.address,
+        first = data.first,
+        second = data.second,
+        create = cast("void*(*)(void)", data.create),
+        destroy = cast("void(*)(void*)", data.destroy),
+        size = cast("size_t(*)(void*)", data.size),
+        at = cast("void*(*)(void*, size_t)", data.at),
+        assign = cast("void(*)(void*, size_t, void*)", data.assign),
+        insert = cast("void(*)(void*, size_t, void*)", data.insert),
+        erase = cast("void(*)(void*, size_t)", data.erase),
+    }
+    containers[data.address] = container
+    return container
+end
+
+local function elementParam(container, index)
+    return index == 2 and container.second or container.first
+end
+
+local function listSize(container, pointer)
+    return container.size and tonumber(container.size(pointer)) or 2
+end
+
+-- Class, string and list elements are read in place, while pointer elements are stored pointers we load first
+local function readElement(param, pointer)
+    local kind = param.kind
+    if kind == "n" then
+        return tonumber(ffi.cast(param.type .. "*", pointer)[0])
+    elseif kind == "b" then
+        return ffi.cast("bool*", pointer)[0]
+    elseif kind == "S" or kind == "W" or kind == "O" or kind == "L" then
+        return toLua({ kind = kind:lower(), type = param.type, container = param.container }, pointer)
+    end
+    return toLua(param, ffi.cast(kind == "c" and "const char**" or "void**", pointer)[0])
+end
+
+local function elementPointer(param, value, keep)
+    local kind = param.kind
+    local pointer
+    if kind == "n" then
+        pointer = ffi.new(param.type .. "[1]", type(value) == "string" and value:byte() or value)
+    elseif kind == "b" then
+        pointer = ffi.new("bool[1]", value)
+    elseif kind == "S" or kind == "W" or kind == "O" or kind == "L" then
+        return toC({ kind = kind:lower(), type = param.type, container = param.container }, value, keep)
+    else
+        pointer = ffi.new(kind == "c" and "const char*[1]" or "void*[1]", toC(param, value, keep))
+    end
+    keep[#keep + 1] = pointer
+    return pointer
+end
+
+local function checkIndex(self, index, last)
+    if type(index) ~= "number" or index < 1 or index > last then
+        error("List index " .. tostring(index) .. " is out of range 1 to " .. last, 3)
+    end
+    return containers[self.container]
+end
+
+local listMethods = {
+    size = function(self)
+        return #self
+    end,
+    push = function(self, value)
+        self:insert(#self + 1, value)
+    end,
+    insert = function(self, index, value)
+        local container = checkIndex(self, index, #self + 1)
+        if not container.insert then
+            error("This list can't grow", 2)
+        end
+        local keep = {}
+        container.insert(self.pointer, index - 1, elementPointer(elementParam(container, index), value, keep))
+    end,
+    erase = function(self, index)
+        local container = checkIndex(self, index, #self)
+        if not container.erase then
+            error("This list can't shrink", 2)
+        end
+        container.erase(self.pointer, index - 1)
+    end,
+    clear = function(self)
+        for i = #self, 1, -1 do
+            self:erase(i)
+        end
+    end,
+}
+
+ffi.cdef("struct ModList { void *pointer; double container; };")
+ModList = ffi.metatype("struct ModList", {
+    __len = function(self)
+        return listSize(containers[self.container], self.pointer)
+    end,
+    __index = function(self, key)
+        if type(key) ~= "number" then
+            return listMethods[key] or error("Lists have no method named " .. tostring(key), 2)
+        end
+        local container = containers[self.container]
+        if key < 1 or key > listSize(container, self.pointer) then
+            return nil
+        end
+        return readElement(elementParam(container, key), container.at(self.pointer, key - 1))
+    end,
+    __newindex = function(self, key, value)
+        local container = checkIndex(self, key, #self)
+        if not container.assign then
+            error("This list's elements can't be assigned", 2)
+        end
+        local keep = {}
+        container.assign(self.pointer, key - 1, elementPointer(elementParam(container, key), value, keep))
+    end,
+})
+
+wrapList = function(param, pointer, owned)
+    local container = containerOf(param)
+    local list = ModList(ffi.cast("void*", pointer), container.address)
+    if owned and container.destroy then
+        local destroy = container.destroy
+        list = ffi.gc(list, function(value)
+            destroy(value.pointer)
+        end)
+    end
+    return list
+end
+
+toLua = function(param, value)
     local kind = param.kind
     if kind == "n" then
         return tonumber(value)
@@ -375,6 +517,8 @@ local function toLua(param, value)
         local text = kind == "S" and std.read(value) or std.readWide(value)
         destroyer(param.destroy)(value)
         return text
+    elseif kind == "l" or kind == "L" then
+        return wrapList(param, value, kind == "L")
     end
 
     local class = param.type and loadClass(param.type)
@@ -392,6 +536,9 @@ local function score(param, value)
     local kind = param.kind
     local valueType = type(value)
     if kind == "n" then
+        if valueType == "string" then
+            return #value == 1 and (param.type == "int8_t" or param.type == "uint8_t") and 1 or nil
+        end
         return (valueType == "number" or valueType == "cdata") and 2 or nil
     elseif kind == "b" then
         return valueType == "boolean" and 2 or nil
@@ -400,6 +547,8 @@ local function score(param, value)
             return 2
         end
         return (kind == "o" or kind == "O") and param.type and 1 or nil
+    elseif valueType == "table" then
+        return (kind == "l" or kind == "L") and 2 or nil
     end
     return (valueType == "cdata" or valueType == "nil") and kind ~= "c" and 2 or nil
 end
@@ -433,12 +582,32 @@ end
 
 local construct
 
-local function toC(param, value, keep)
-    if type(value) ~= "string" then
+toC = function(param, value, keep)
+    local kind = param.kind
+    if (kind == "l" or kind == "L") and type(value) == "table" then
+        local container = containerOf(param)
+        if not container.create or not (container.insert or container.assign) then
+            error("This list type can't be built from a table", 4)
+        end
+        local pointer = ffi.gc(container.create(), container.destroy)
+        keep[#keep + 1] = pointer
+        for i = 1, #value do
+            local element = elementPointer(elementParam(container, i), value[i], keep)
+            if container.insert then
+                container.insert(pointer, i - 1, element)
+            else
+                container.assign(pointer, i - 1, element)
+            end
+        end
+        return pointer
+    elseif ffi.istype(ModList, value) then
+        return value.pointer
+    elseif kind == "n" and type(value) == "string" then
+        return value:byte()
+    elseif type(value) ~= "string" then
         return value
     end
 
-    local kind = param.kind
     if kind == "s" or kind == "S" then
         value = std.string(value)
     elseif kind == "w" or kind == "W" then
@@ -616,7 +785,7 @@ local function hookSignature(target)
 
     local overload = overloads[1]
     local function rawType(param)
-        if param.kind == "O" or param.kind == "S" or param.kind == "W" then
+        if param.kind == "O" or param.kind == "S" or param.kind == "W" or param.kind == "L" then
             error(target .. " passes a class by value, so pass its signature", 4)
         elseif param.reference and (param.kind == "n" or param.kind == "b") then
             return "void*"
@@ -641,7 +810,9 @@ local function typedArguments(params, ...)
     local arguments = { ... }
     for i = 1, #params do
         local class = params[i].kind == "o" and params[i].type and loadClass(params[i].type)
-        if class and arguments[i] ~= nil then
+        if params[i].kind == "l" and arguments[i] ~= nil then
+            arguments[i] = wrapList(params[i], arguments[i], false)
+        elseif class and arguments[i] ~= nil then
             arguments[i] = ffi.cast(class.pointer, arguments[i])
         end
     end
@@ -1099,4 +1270,36 @@ void ModLoader::PushParam(lua_State *state, const ModParam &param)
     lua_setfield(state, -2, "destroy");
     lua_pushboolean(state, param.reference);
     lua_setfield(state, -2, "reference");
+    if (!param.container)
+    {
+        return;
+    }
+
+    const ModContainer &container = *param.container;
+    lua_newtable(state);
+    lua_pushnumber(state, (lua_Number) (uintptr_t) &container);
+    lua_setfield(state, -2, "address");
+    PushParam(state, container.first);
+    lua_setfield(state, -2, "first");
+    if (container.second.kind)
+    {
+        PushParam(state, container.second);
+        lua_setfield(state, -2, "second");
+    }
+
+    lua_pushnumber(state, (lua_Number) (uintptr_t) container.create);
+    lua_setfield(state, -2, "create");
+    lua_pushnumber(state, (lua_Number) (uintptr_t) container.destroy);
+    lua_setfield(state, -2, "destroy");
+    lua_pushnumber(state, (lua_Number) (uintptr_t) container.size);
+    lua_setfield(state, -2, "size");
+    lua_pushnumber(state, (lua_Number) (uintptr_t) container.at);
+    lua_setfield(state, -2, "at");
+    lua_pushnumber(state, (lua_Number) (uintptr_t) container.assign);
+    lua_setfield(state, -2, "assign");
+    lua_pushnumber(state, (lua_Number) (uintptr_t) container.insert);
+    lua_setfield(state, -2, "insert");
+    lua_pushnumber(state, (lua_Number) (uintptr_t) container.erase);
+    lua_setfield(state, -2, "erase");
+    lua_setfield(state, -2, "container");
 }

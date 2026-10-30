@@ -37,6 +37,9 @@ const metrics = [
     {group: 1, key: "PL", name: "Players", description: "Kicking, killing or impersonating others, or seeing their data.", values: impactValues},
     {group: 1, key: "AD", name: "Advantage", description: "Unfair gameplay like flying, speed, reach or x-ray.", values: impactValues},
     {group: 1, key: "AC", name: "Accounts", description: "Account takeover, leaked emails, IPs or tokens.", values: impactValues},
+    {group: 1, key: "GP", name: "Gameplay", description: "A mechanic, block, item or mob not working as it should.", values: [["N", "None", 0, "No effect here."], ["L", "Low", 0.25, "Minor or easy to work around."], ["H", "High", 0.5, "A whole mechanic is broken."]]},
+    {group: 1, key: "PR", name: "Progression", description: "Getting stuck, softlocks or things that can't be obtained.", values: [["N", "None", 0, "No effect here."], ["L", "Low", 0.4, "Blocks progress until a workaround."], ["H", "High", 0.7, "Progress is impossible."]]},
+    {group: 1, key: "CO", name: "Cosmetic", description: "Wrong visuals, text or UI only.", values: [["N", "None", 0, "No effect here."], ["L", "Low", 0.1, "Hard to notice."], ["H", "High", 0.2, "Obvious on screen."]]},
     {group: 2, key: "RC", name: "Reach", description: "Who is affected.", values: [
         ["S", "Self", 0.5, "Only the player who triggers it."],
         ["O", "Server", 1, "Other players on the same server."],
@@ -53,6 +56,7 @@ const metrics = [
     ]},
 ];
 
+const gameplayKeys = ["GP", "PR", "CO"];
 const selected = {};
 const vectorInput = document.getElementById("score-vector");
 
@@ -63,22 +67,31 @@ function roundUp(value) {
 }
 
 function weight(key) {
+    // Gameplay metrics are optional so vectors from before they existed still score
+    if (!selected[key]) {
+        return 0;
+    }
+
     return metrics.find(metric => metric.key === key).values.find(value => value[0] === selected[key])[2];
 }
 
 function score() {
-    if (metrics.some(metric => !selected[metric.key])) {
+    if (metrics.some(metric => !selected[metric.key] && !gameplayKeys.includes(metric.key))) {
         return null;
     }
 
+    const modifiers = weight("RC") * weight("PE") * weight("DT");
+    const gameplayImpact = 1 - gameplayKeys.reduce((product, key) => product * (1 - weight(key)), 1);
+    // Gameplay bugs skip exploitability and are capped below High so they never outrank an exploit
+    const gameplay = gameplayImpact > 0 ? roundUp(Math.min(10 * gameplayImpact * modifiers, 6.9)) : 0;
     const impactKeys = ["IT", "WO", "ST", "PL", "AD", "AC"];
     const impact = 1 - impactKeys.reduce((product, key) => product * (1 - weight(key)), 1);
     if (impact <= 0) {
-        return 0;
+        return gameplay;
     }
 
     const exploitability = 11.38 * weight("W") * weight("RQ") * weight("RE") * weight("TL") * weight("UI");
-    return roundUp(Math.min((6.42 * impact + exploitability) * weight("RC") * weight("PE") * weight("DT"), 10));
+    return Math.max(roundUp(Math.min((6.42 * impact + exploitability) * modifiers, 10)), gameplay);
 }
 
 function severity(value) {

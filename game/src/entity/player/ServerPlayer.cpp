@@ -880,7 +880,17 @@ void ServerPlayer::CompleteUsingItem()
     }
     m_level->PlaySound("random.burp", m_position, 0.5f, random.NextFloat() * 0.1f + 0.9f);
     StopUsingItem();
-    SendHealth();
+}
+
+void ServerPlayer::StopUsingItem()
+{
+    // The client applies food when its own eat timer ends, so we resend hunger to undo that if ours gets cancelled first
+    bool eating = IsUsingItem() && m_useItem.GetItem()->GetUseAnimation() == eUseAnim_Eat;
+    Player::StopUsingItem();
+    if (eating)
+    {
+        SendHealth();
+    }
 }
 
 // We only travel when walking into a tear, so landing next to one on the other side doesn't send us straight back

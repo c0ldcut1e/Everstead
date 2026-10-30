@@ -62,11 +62,12 @@ public:
     bool GetPos(glm::dvec3 position, glm::dvec3 *out) const;
     bool GetPosOffs(glm::dvec3 position, double offset, glm::dvec3 *out) const;
 
-    static constexpr uint8_t kHurtEvent  = 11;
-    static constexpr uint8_t kLitEvent   = 12;
-    static constexpr uint8_t kUnlitEvent = 13;
-    static constexpr uint8_t kPrimeEvent = 14;
-    static const eENTITY_TYPE s_type     = eEntityType_Minecart;
+    static constexpr uint8_t kHurtEvent      = 11;
+    static constexpr uint8_t kLitEvent       = 12;
+    static constexpr uint8_t kUnlitEvent     = 13;
+    static constexpr uint8_t kPrimeEvent     = 14;
+    static constexpr double kClientBoxOffset = 0.35;
+    static const eENTITY_TYPE s_type         = eEntityType_Minecart;
 
 private:
     static bool IsDescending(const glm::dvec3 &direction, int shape);

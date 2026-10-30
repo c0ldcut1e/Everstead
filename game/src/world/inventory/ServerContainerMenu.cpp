@@ -196,8 +196,9 @@ void ServerContainerMenu::OpenChest(Level *level, const BlockPos &pos, ChestBloc
 
 void ServerContainerMenu::OpenMinecart(Minecart *minecart, uint8_t menuId)
 {
-    m_minecartId  = minecart->GetId();
-    m_chestMenuId = menuId;
+    m_minecartId         = minecart->GetId();
+    m_chestMenuId        = menuId;
+    m_itemTransferMenuId = 0;
     m_player->OpenContainer(minecart->GetContainer());
     m_player->GetPlayerConnection()->Send(std::shared_ptr<Packet>(new ContainerOpenS2CPacket(menuId, (uint8_t) minecart->GetContainer()->GetRows())));
     SyncContainer(menuId, true);

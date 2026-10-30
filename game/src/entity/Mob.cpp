@@ -40,6 +40,7 @@ Mob::Mob(Level *level)
     m_sentData               = MobData();
     m_leashHolderId          = -1;
     m_leashRestoreTime       = 0;
+    m_stepHeight             = 0.5;
     SetSize(m_width, m_height);
 }
 

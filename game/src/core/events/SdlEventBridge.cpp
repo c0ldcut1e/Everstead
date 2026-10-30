@@ -6,6 +6,7 @@
 
 #include "../../input/SdlControllerBackend.h"
 #include "../../ui/imgui/imgui_impl_sdl2.h"
+#include "../FrameProfiler.h"
 #include "EventManager.h"
 #include "KeyPressedEvent.h"
 #include "KeyReleasedEvent.h"
@@ -32,8 +33,17 @@ void ResetSdlMouseState()
 
 void PumpSdlEvents()
 {
+    {
+        FrameProfilerScope scope("SdlEvents::Pump");
+        SDL_PumpEvents();
+    }
+
+    FrameProfilerScope scope("SdlEvents::Process");
+    // High polling rate mice queue hundreds of motion events per frame, so we sum them into one
+    int motionX = 0;
+    int motionY = 0;
     SDL_Event event;
-    while (SDL_PollEvent(&event))
+    while (SDL_PeepEvents(&event, 1, SDL_GETEVENT, SDL_FIRSTEVENT, SDL_LASTEVENT) > 0)
     {
         ImGui_ImplSDL2_ProcessEvent(&event);
 
@@ -83,7 +93,8 @@ void PumpSdlEvents()
                     break;
                 }
 
-                EventManager::Push(new MouseMovedEvent((double) event.motion.xrel, (double) -event.motion.yrel));
+                motionX += event.motion.xrel;
+                motionY += event.motion.yrel;
                 break;
             }
 
@@ -123,6 +134,11 @@ void PumpSdlEvents()
                 break;
             }
         }
+    }
+
+    if (motionX != 0 || motionY != 0)
+    {
+        EventManager::Push(new MouseMovedEvent((double) motionX, (double) -motionY));
     }
 }
 

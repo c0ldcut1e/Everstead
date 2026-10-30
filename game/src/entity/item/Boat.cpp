@@ -17,6 +17,7 @@
 
 Boat::Boat(Level *level) : Entity(level)
 {
+    m_blocksBuilding     = true;
     m_woodType           = 0;
     m_timeSinceHit       = 0;
     m_hurtDir            = 1;

@@ -56,6 +56,7 @@ public:
     std::vector<std::pair<FractureTrait *, int>> GetArmorFractures();
     void Knockback(const glm::dvec3 &source, const glm::dvec3 &push) override;
     void SendHealth();
+    void StopUsingItem() override;
     void GiveExperience(int amount);
     void PickupExperience(int amount);
     void GiveExperienceLevels(int levels);

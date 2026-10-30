@@ -631,15 +631,8 @@ void ClientConnection::HandleMultiBlockUpdate(MultiBlockUpdateS2CPacket *packet)
             continue;
         }
 
-        // Liquid flow changes every few ticks, so it stays off the urgent queue that edits the player can see need
-        if (block->IsLiquid())
-        {
-            level->SetBlockDeferredMesh(changes[i].pos, block, changes[i].blockData);
-        }
-        else
-        {
-            level->SetBlock(changes[i].pos, block, nullptr, changes[i].blockData);
-        }
+        // Our own edits are already predicted, so server changes like crop growth and redstone go through the budgeted mesh queue
+        level->SetBlockDeferredMesh(changes[i].pos, block, changes[i].blockData);
         if (block == fractureCore)
         {
             levelRenderer->AddTear(changes[i].pos);

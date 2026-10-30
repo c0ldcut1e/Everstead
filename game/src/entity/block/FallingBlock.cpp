@@ -25,13 +25,14 @@ static const int s_maxLifetime = 600;
 
 FallingBlock::FallingBlock(Level *level) : Entity(level)
 {
-    m_liquidInsetY = 0.001;
-    m_block        = nullptr;
-    m_blockData    = 0;
-    m_spawnData    = 0;
-    m_fallDistance = 0.0f;
-    m_noGravity    = true;
-    m_boundingBox  = {glm::dvec3(-0.49, 0.0, -0.49), glm::dvec3(0.49, 0.98, 0.49)};
+    m_blocksBuilding = true;
+    m_liquidInsetY   = 0.001;
+    m_block          = nullptr;
+    m_blockData      = 0;
+    m_spawnData      = 0;
+    m_fallDistance   = 0.0f;
+    m_noGravity      = true;
+    m_boundingBox    = {glm::dvec3(-0.49, 0.0, -0.49), glm::dvec3(0.49, 0.98, 0.49)};
 }
 
 FallingBlock::~FallingBlock()

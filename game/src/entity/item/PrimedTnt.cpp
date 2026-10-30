@@ -9,6 +9,7 @@
 
 PrimedTnt::PrimedTnt(Level *level) : Entity(level)
 {
+    m_blocksBuilding = true;
     m_liquidInsetY   = 0.001;
     m_fuse           = 80;
     m_explosionPower = 4.0f;

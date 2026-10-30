@@ -15,7 +15,7 @@ class_head = re.compile(
 nested_head = re.compile(r"^(enum(\s+class|\s+struct)?|class|struct|union)\s+(\w+)")
 alias_head = re.compile(r"^(using\s+(\w+)\s*=|typedef\s.*?(\w+)$)", re.S)
 definition = re.compile(r"^(?=[^\s#/])[^;{}]*?\b(\w+)(?:<[^>]*>)?::(~?\w+)\s*\([^;{}]*$", re.M)
-static_definition = re.compile(r"^(?=[^\s#/])[^;(){}]*?\b(\w+)::(\w+)\s*(?:\[[^\]]*\]\s*)?[={;]", re.M)
+static_definition = re.compile(r"^(?=[^\s#/])[^;(){}=]*?\b(\w+)::(\w+)\s*(?:\[[^\]]*\]\s*)?[={;]", re.M)
 field_skip = re.compile(r"^(using|typedef|friend|template|static_assert|enum|class|struct|union|thread_local|extern)\b")
 server_guard = re.compile(r"#\s*(ifdef|ifndef|if\s*!?\s*defined)\s*\(?\s*EVERSTEAD_DEDICATED_SERVER\s*\)?\s*$")
 
@@ -543,6 +543,8 @@ def lua_type(type_name, parameter):
     if type_name is None:
         return "any"
     words = [word for word in re.findall(r"[\w:]+|[*&]+", type_name) if word not in ("const", "volatile")]
+    if words and words[0] in ("std::vector", "std::pair"):
+        return "table"
     pointers = sum(word.count("*") for word in words)
     reference = any("&" in word for word in words) and "const" not in type_name.split()
     base = " ".join(word for word in words if word[0] not in "*&")
@@ -600,6 +602,24 @@ for name, parsed in classes.items():
 
 # Classes whose source is not compiled can still hold members whose destructors are missing
 defined_classes = {key.split("::")[0] for key in defined}
+undestructible = {
+    name
+    for name, parsed in classes.items()
+    if (parsed["destructor"] and name + "::~" + name not in defined)
+    or (
+        server
+        and name not in defined_classes
+        and any(not method["inline"] for method in parsed["methods"])
+    )
+}
+
+
+def destroys_undestructible(text):
+    """Containers destroy their elements, so binding one that holds an undestructible class fails to link."""
+    return re.search(r"std::(vector|pair)\s*<", text) and any(
+        re.search(r"\b%s\b" % name, text) for name in undestructible
+    )
+
 
 entries = []
 stub_entries = []
@@ -610,7 +630,9 @@ for name in sorted(classes):
     lines = []
     stubs = []
     for method in parsed["methods"]:
-        if bindable(name, method):
+        if bindable(name, method) and not destroys_undestructible(
+            method["return"] + method["parameters"]
+        ):
             line = describe(name, method, counts[method["name"]] > 1, {})
             if line:
                 lines.append(line)
@@ -637,7 +659,7 @@ for name in sorted(classes):
 
     fields = []
     for field in parsed["fields"]:
-        if field["name"] in counts or (
+        if field["name"] in counts or destroys_undestructible(field["type"] or "") or (
             field["static"] and not field["inline"] and name + "::" + field["name"] not in defined
         ):
             continue
@@ -671,16 +693,7 @@ for name in sorted(classes):
                             stubs.append(stub(name, method, replacements))
 
     used_headers.add(class_headers[name])
-    destroy = (
-        "nullptr"
-        if (parsed["destructor"] and name + "::~" + name not in defined)
-        or (
-            server
-            and name not in defined_classes
-            and any(not method["inline"] for method in parsed["methods"])
-        )
-        else "ModDestroyOf<%s>()" % name
-    )
+    destroy = "nullptr" if name in undestructible else "ModDestroyOf<%s>()" % name
     entries.append((name, ",".join(bases), lines, fields, destroy))
     stub_entries.append((name, bases, stubs, fields))
 

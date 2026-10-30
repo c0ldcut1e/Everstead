@@ -50,7 +50,8 @@ std::unique_ptr<Path> PathNavigation::CreatePath(double x, double y, double z)
         return nullptr;
     }
 
-    PathFinder finder(m_level, m_avoidWater, m_canFloat);
+    // A mob that avoids water still has to path through it to reach the shore once it is swimming
+    PathFinder finder(m_level, m_avoidWater && !m_mob->IsInWater(), m_canFloat);
     return finder.FindPath(m_mob, x, y, z, m_maxDist);
 }
 
@@ -61,7 +62,7 @@ bool PathNavigation::MoveTo(double x, double y, double z, double speed)
 
 bool PathNavigation::MoveTo(Entity *target, double speed)
 {
-    const glm::dvec3 &position       = target->GetPosition();
+    const glm::dvec3 &position = target->GetPosition();
     std::unique_ptr<Path> path = CreatePath(position.x, target->GetAABB().GetMin().y, position.z);
     if (!path)
     {
@@ -190,9 +191,9 @@ int PathNavigation::GetSurfaceY() const
     }
 
     const glm::dvec3 &position = m_mob->GetPosition();
-    int x                = (int) floor(position.x);
-    int z                = (int) floor(position.z);
-    int surface          = (int) minY;
+    int x                      = (int) floor(position.x);
+    int z                      = (int) floor(position.z);
+    int surface                = (int) minY;
     for (int steps = 0; Block::ById(m_level->GetBlockId(BlockPos(x, surface, z)))->IsLiquid(); steps++)
     {
         if (steps >= 16)

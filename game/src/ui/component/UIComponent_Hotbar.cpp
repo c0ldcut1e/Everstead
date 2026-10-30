@@ -14,14 +14,18 @@
 #include "../../rendering/Icon.h"
 #include "../../rendering/Tesselator.h"
 #include "../../rendering/Textures.h"
+#include "../../utils/StringUtils.h"
 #include "../../utils/Time.h"
 #include "../../world/block/Block.h"
 #include "../../world/block/BlockRenderer.h"
 #include "../../world/item/Item.h"
 #include "../../world/item/ItemInstance.h"
+#include "../ChatMessageParser.h"
 #include "../Screen.h"
 #include "../UIItemRenderer.h"
 #include "../UITextureAtlas.h"
+
+#include <nlohmann/json.hpp>
 
 const float UIComponent_Hotbar::s_blockIconScale = 0.55f;
 
@@ -188,12 +192,15 @@ void UIComponent_Hotbar::Render()
 
     if (m_nameTime > 0.0f)
     {
-        Font *font        = everstead->GetDefaultFont();
-        float fontScale   = GetItemNameFontScale(actualWidth, actualHeight, hudScale);
-        std::wstring name = everstead->GetString(heldItem->GetDescriptionId());
-        float textX       = round((float) actualWidth * 0.5f - font->GetWidth(name, fontScale) * 0.5f);
-        float textY       = GetItemNameBaselineY(actualWidth, actualHeight, hudScale);
-        uint32_t alpha    = (uint32_t) (std::min(m_nameTime / 0.5f, 1.0f) * 255.0f);
+        Font *font      = everstead->GetDefaultFont();
+        float fontScale = GetItemNameFontScale(actualWidth, actualHeight, hudScale);
+        std::wstring name =
+                selectedItem->HasCustomName()
+                        ? StringUtils::ToUtf16(ChatMessageParser().ToPlainText(nlohmann::json::parse(selectedItem->GetCustomName(), nullptr, false)))
+                        : everstead->GetString(heldItem->GetDescriptionId());
+        float textX    = round((float) actualWidth * 0.5f - font->GetWidth(name, fontScale) * 0.5f);
+        float textY    = GetItemNameBaselineY(actualWidth, actualHeight, hudScale);
+        uint32_t alpha = (uint32_t) (std::min(m_nameTime / 0.5f, 1.0f) * 255.0f);
         font->SetNearest(true);
         font->DrawShadow(name, textX, textY, fontScale, (alpha << 24) | 0xFFFFFF);
         m_nameTime -= delta;

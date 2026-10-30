@@ -54,7 +54,7 @@ public:
     virtual void OpenContainer(AbstractContainer *container);
     virtual void CloseContainer();
     void StartUsingItem(const ItemInstance &item, int duration);
-    void StopUsingItem();
+    virtual void StopUsingItem();
     bool IsUsingItem() const;
     bool IsBlocking() const;
     bool IsDrawingBow() const;

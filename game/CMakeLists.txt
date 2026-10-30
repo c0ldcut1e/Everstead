@@ -95,7 +95,8 @@ else()
     # Keep diagnostic escape codes when the compiler runs inside a Docker task.
     # VS Code's integrated terminal renders them, even though Docker's stdout
     # is not itself an interactive terminal.
-    target_compile_options(Everstead PRIVATE -Wall -Wextra -fdiagnostics-color=always)
+    # FastNoiseLite hashes with signed int overflow, so we make it wrap instead of being undefined
+    target_compile_options(Everstead PRIVATE -Wall -Wextra -fdiagnostics-color=always -fwrapv)
 endif()
 
 find_package(Threads REQUIRED)
@@ -190,8 +191,9 @@ add_custom_command(
     VERBATIM
 )
 target_sources(Everstead PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/ModClasses.cpp")
+# GCC takes many minutes to optimize the generated bindings and they are only thin call thunks
 set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/ModClasses.cpp" "${CMAKE_CURRENT_BINARY_DIR}/ServerModClasses.cpp"
-    PROPERTIES COMPILE_OPTIONS -fno-access-control)
+    PROPERTIES COMPILE_OPTIONS "-fno-access-control;-O0;$<$<BOOL:${MINGW}>:-Wa,-mbig-obj>")
 
 # Every game function starts with a nop pad that mods overwrite with a jump to their hook
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
@@ -259,6 +261,9 @@ set_target_properties(EversteadServer PROPERTIES
 target_include_directories(EversteadServer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_definitions(EversteadServer PRIVATE EVERSTEAD_DEDICATED_SERVER GLM_FORCE_CTOR_INIT GLM_ENABLE_EXPERIMENTAL)
 target_compile_options(EversteadServer PRIVATE ${EVERSTEAD_PATCHABLE_ENTRY})
+if(NOT MSVC)
+    target_compile_options(EversteadServer PRIVATE -fwrapv)
+endif()
 target_link_libraries(EversteadServer PRIVATE EversteadMimalloc EversteadEnet EversteadMbedtls EversteadLuaJit ZLIB::ZLIB Threads::Threads)
 if(UNIX AND NOT APPLE)
     target_link_libraries(EversteadServer PRIVATE ${CMAKE_DL_LIBS})

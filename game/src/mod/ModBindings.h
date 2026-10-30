@@ -4,6 +4,9 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
+
+struct ModContainer;
 
 struct ModParam
 {
@@ -11,6 +14,21 @@ struct ModParam
     const char *type;
     void (*destroy)(void *);
     bool reference;
+    const ModContainer *container;
+};
+
+// Pairs leave size, insert and erase null and always hold two elements
+struct ModContainer
+{
+    ModParam first;
+    ModParam second;
+    void *(*create)();
+    void (*destroy)(void *);
+    size_t (*size)(void *);
+    void *(*at)(void *, size_t);
+    void (*assign)(void *, size_t, void *);
+    void (*insert)(void *, size_t, void *);
+    void (*erase)(void *, size_t);
 };
 
 struct ModMethod
@@ -82,6 +100,29 @@ constexpr void (*ModDestroyOf())(void *)
 }
 
 template<typename T>
+constexpr bool kModContainer = false;
+
+// We skip vector<bool> since it packs its bits and has no element address to hand out
+template<typename T, typename A>
+constexpr bool kModContainer<std::vector<T, A>> = !std::is_same_v<T, bool>;
+
+template<typename F, typename S>
+constexpr bool kModContainer<std::pair<F, S>> = true;
+
+// We check elements ourselves since is_copy_constructible says yes to containers of move-only types
+template<typename T>
+constexpr bool kModCopyable = std::is_copy_constructible_v<T> && std::is_copy_assignable_v<T>;
+
+template<typename T, typename A>
+constexpr bool kModCopyable<std::vector<T, A>> = kModCopyable<T>;
+
+template<typename F, typename S>
+constexpr bool kModCopyable<std::pair<F, S>> = kModCopyable<F> && kModCopyable<S>;
+
+template<typename T>
+struct ModContainerOf;
+
+template<typename T>
 struct ModUnderlying
 {
     using Type = T;
@@ -138,46 +179,54 @@ struct ModValue
         using Bare = ModBare<T>;
         if constexpr (kModOutNumber<T>)
         {
-            return {'p', nullptr, nullptr, false};
+            return {'p', nullptr, nullptr, false, nullptr};
         }
         else if constexpr (std::is_same_v<Bare, bool>)
         {
-            return {'b', nullptr, nullptr, false};
+            return {'b', nullptr, nullptr, false, nullptr};
         }
         else if constexpr (kModNumber<T>)
         {
-            return {'n', ModNumberName<T>(), nullptr, false};
+            return {'n', ModNumberName<T>(), nullptr, false, nullptr};
         }
         else if constexpr (kModText<T>)
         {
-            return {'c', nullptr, nullptr, false};
+            return {'c', nullptr, nullptr, false, nullptr};
         }
         else if constexpr (std::is_pointer_v<Bare>)
         {
-            if constexpr (std::is_same_v<ModPointee<T>, std::string>)
+            if constexpr (kModContainer<ModPointee<T>>)
             {
-                return {'s', nullptr, nullptr, false};
+                return {'l', nullptr, nullptr, false, &ModContainerOf<ModPointee<T>>::kContainer};
+            }
+            else if constexpr (std::is_same_v<ModPointee<T>, std::string>)
+            {
+                return {'s', nullptr, nullptr, false, nullptr};
             }
             else if constexpr (std::is_same_v<ModPointee<T>, std::wstring>)
             {
-                return {'w', nullptr, nullptr, false};
+                return {'w', nullptr, nullptr, false, nullptr};
             }
             else
             {
-                return {kModName<ModPointee<T>> ? 'o' : 'p', kModName<ModPointee<T>>, nullptr, false};
+                return {kModName<ModPointee<T>> ? 'o' : 'p', kModName<ModPointee<T>>, nullptr, false, nullptr};
             }
         }
         else if constexpr (std::is_same_v<Bare, std::string>)
         {
-            return {std::is_reference_v<T> ? 's' : 'S', nullptr, nullptr, false};
+            return {std::is_reference_v<T> ? 's' : 'S', nullptr, nullptr, false, nullptr};
         }
         else if constexpr (std::is_same_v<Bare, std::wstring>)
         {
-            return {std::is_reference_v<T> ? 'w' : 'W', nullptr, nullptr, false};
+            return {std::is_reference_v<T> ? 'w' : 'W', nullptr, nullptr, false, nullptr};
+        }
+        else if constexpr (kModContainer<Bare>)
+        {
+            return {std::is_reference_v<T> ? 'l' : 'L', nullptr, nullptr, false, &ModContainerOf<Bare>::kContainer};
         }
         else
         {
-            return {std::is_reference_v<T> ? 'o' : 'O', kModName<Bare>, nullptr, false};
+            return {std::is_reference_v<T> ? 'o' : 'O', kModName<Bare>, nullptr, false, nullptr};
         }
     }
 
@@ -219,7 +268,7 @@ struct ModResult
         using Bare = ModBare<R>;
         if constexpr (std::is_void_v<R>)
         {
-            return {'v', nullptr, nullptr, false};
+            return {'v', nullptr, nullptr, false, nullptr};
         }
         else if constexpr (std::is_reference_v<R> || std::is_pointer_v<R> || kModNumber<R> || kModText<R>)
         {
@@ -227,15 +276,19 @@ struct ModResult
         }
         else if constexpr (std::is_same_v<Bare, std::string>)
         {
-            return {'S', nullptr, ModDestroyOf<Bare>(), false};
+            return {'S', nullptr, ModDestroyOf<Bare>(), false, nullptr};
         }
         else if constexpr (std::is_same_v<Bare, std::wstring>)
         {
-            return {'W', nullptr, ModDestroyOf<Bare>(), false};
+            return {'W', nullptr, ModDestroyOf<Bare>(), false, nullptr};
+        }
+        else if constexpr (kModContainer<Bare>)
+        {
+            return {'L', nullptr, ModDestroyOf<Bare>(), false, &ModContainerOf<Bare>::kContainer};
         }
         else
         {
-            return {'O', kModName<Bare>, ModDestroyOf<Bare>(), false};
+            return {'O', kModName<Bare>, ModDestroyOf<Bare>(), false, nullptr};
         }
     }
 
@@ -300,6 +353,137 @@ struct ModMemberBind
     {
         return ModSignature<R, A...>::Describe(name, (void *) Call, false);
     }
+};
+
+// Elements always move through pointers to them, and Lua reads or fills those based on the element's kind
+template<typename T, typename A>
+struct ModContainerOf<std::vector<T, A>>
+{
+    static void *Create()
+    {
+        return new std::vector<T, A>();
+    }
+
+    static size_t Size(void *self)
+    {
+        return ((std::vector<T, A> *) self)->size();
+    }
+
+    static void *At(void *self, size_t index)
+    {
+        return (void *) &(*(std::vector<T, A> *) self)[index];
+    }
+
+    static void Assign(void *self, size_t index, void *value)
+    {
+        (*(std::vector<T, A> *) self)[index] = *(const T *) value;
+    }
+
+    static void Insert(void *self, size_t index, void *value)
+    {
+        std::vector<T, A> *list = (std::vector<T, A> *) self;
+        list->insert(list->begin() + (ptrdiff_t) index, *(const T *) value);
+    }
+
+    static void Erase(void *self, size_t index)
+    {
+        std::vector<T, A> *list = (std::vector<T, A> *) self;
+        list->erase(list->begin() + (ptrdiff_t) index);
+    }
+
+    static constexpr void (*AssignOf())(void *, size_t, void *)
+    {
+        if constexpr (kModCopyable<T>)
+        {
+            return Assign;
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    static constexpr void (*InsertOf())(void *, size_t, void *)
+    {
+        if constexpr (kModCopyable<T>)
+        {
+            return Insert;
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    static constexpr void (*EraseOf())(void *, size_t)
+    {
+        if constexpr (std::is_move_assignable_v<T>)
+        {
+            return Erase;
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    static constexpr ModContainer kContainer = {
+            ModValue<T>::Describe(), {}, Create, ModDestroyOf<std::vector<T, A>>(), Size, At, AssignOf(), InsertOf(), EraseOf()};
+};
+
+template<typename F, typename S>
+struct ModContainerOf<std::pair<F, S>>
+{
+    static void *Create()
+    {
+        return new std::pair<F, S>();
+    }
+
+    static void *At(void *self, size_t index)
+    {
+        std::pair<F, S> *pair = (std::pair<F, S> *) self;
+        return index == 0 ? (void *) &pair->first : (void *) &pair->second;
+    }
+
+    static void Assign(void *self, size_t index, void *value)
+    {
+        std::pair<F, S> *pair = (std::pair<F, S> *) self;
+        if (index == 0)
+        {
+            pair->first = *(const F *) value;
+        }
+        else
+        {
+            pair->second = *(const S *) value;
+        }
+    }
+
+    static constexpr void *(*CreateOf())()
+    {
+        if constexpr (std::is_default_constructible_v<std::pair<F, S>>)
+        {
+            return Create;
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    static constexpr void (*AssignOf())(void *, size_t, void *)
+    {
+        if constexpr (kModCopyable<std::pair<F, S>>)
+        {
+            return Assign;
+        }
+        else
+        {
+            return nullptr;
+        }
+    }
+
+    static constexpr ModContainer kContainer = {
+            ModValue<F>::Describe(), ModValue<S>::Describe(), CreateOf(), ModDestroyOf<std::pair<F, S>>(), nullptr, At, AssignOf(), nullptr, nullptr};
 };
 
 template<auto F, typename R, typename... A>

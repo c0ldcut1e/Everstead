@@ -124,6 +124,7 @@ Entity::Entity(Level *level)
     m_noCollision         = false;
     m_liquidInsetY        = s_waterCheckInsetY;
     m_stepHeight          = 0.0;
+    m_blocksBuilding      = false;
     m_flying              = false;
     m_boundingBox         = {glm::dvec3(-0.3, 0.0, -0.3), glm::dvec3(0.3, 1.8, 0.3)};
     m_aabb                = {};
@@ -823,6 +824,11 @@ void Entity::JumpFromGround()
 double Entity::GetStepHeight() const
 {
     return m_stepHeight;
+}
+
+bool Entity::BlocksBuilding() const
+{
+    return m_blocksBuilding;
 }
 
 AttributeMap *Entity::GetAttributes()

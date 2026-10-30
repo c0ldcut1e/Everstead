@@ -44,7 +44,7 @@ void HopperBlockEntity::Tick()
 
     bool moved = !IsEmpty() && PushItems(block->GetFacing(data));
     moved      = SuckInItems(m_level, this, BlockPos(m_pos.x, m_pos.y + 1, m_pos.z),
-                             AABB(glm::dvec3(m_pos.x, m_pos.y + 0.5, m_pos.z), glm::dvec3(m_pos.x + 1.0, m_pos.y + 1.5, m_pos.z + 1.0)), this,
+                             AABB(glm::dvec3(m_pos.x, m_pos.y + 0.5, m_pos.z), glm::dvec3(m_pos.x + 1.0, m_pos.y + 2.0, m_pos.z + 1.0)), this,
                              &m_compoundChest) ||
                  moved;
     if (moved)

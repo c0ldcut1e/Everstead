@@ -32,6 +32,7 @@ public:
     virtual ~Entity();
 
     virtual double GetStepHeight() const;
+    bool BlocksBuilding() const;
     AttributeMap *GetAttributes();
     double GetAttributeValue(const Attribute &attribute) const;
 
@@ -193,6 +194,7 @@ protected:
     bool m_noCollision;
     double m_liquidInsetY;
     double m_stepHeight;
+    bool m_blocksBuilding;
     bool m_flying;
 
     AABB m_boundingBox;

@@ -36,22 +36,23 @@ static constexpr double kRailHeight = 0.0625;
 
 Minecart::Minecart(Level *level) : Entity(level)
 {
-    m_type         = eMinecartType_Rideable;
-    m_timeSinceHit = 0;
-    m_hurtDir      = 1;
-    m_damage       = 0.0f;
-    m_flipped      = false;
-    m_onRails      = false;
-    m_lit          = false;
-    m_fuel         = 0;
-    m_fuse         = -1;
-    m_pushX        = 0.0;
-    m_pushZ        = 0.0;
-    m_boundingBox  = {glm::dvec3(-0.49, 0.0, -0.49), glm::dvec3(0.49, 0.7, 0.49)};
+    m_blocksBuilding = true;
+    m_type           = eMinecartType_Rideable;
+    m_timeSinceHit   = 0;
+    m_hurtDir        = 1;
+    m_damage         = 0.0f;
+    m_flipped        = false;
+    m_onRails        = false;
+    m_lit            = false;
+    m_fuel           = 0;
+    m_fuse           = -1;
+    m_pushX          = 0.0;
+    m_pushZ          = 0.0;
+    m_boundingBox    = {glm::dvec3(-0.49, 0.0, -0.49), glm::dvec3(0.49, 0.7, 0.49)};
     // The client box sits half its height above the server one, so a cart never covers the rail it stands on
     if (level->IsClientSide())
     {
-        m_boundingBox = m_boundingBox.Translated(glm::dvec3(0.0, 0.35, 0.0));
+        m_boundingBox = m_boundingBox.Translated(glm::dvec3(0.0, kClientBoxOffset, 0.0));
     }
 }
 
@@ -143,9 +144,9 @@ void Minecart::Tick()
     if (m_type == eMinecartType_Hopper)
     {
         BlockPos above((int) floor(m_position.x), (int) floor(m_position.y + 1.5), (int) floor(m_position.z));
-        AABB area = GetAABB();
+        // This reaches through one block above the cart, so it also collects items lying on the block over the rail
         HopperBlockEntity::SuckInItems(m_level, m_container.get(), above,
-                                       AABB(area.GetMin() - glm::dvec3(0.25, 0.0, 0.25), area.GetMax() + glm::dvec3(0.25, 0.0, 0.25)), nullptr,
+                                       AABB(m_position + glm::dvec3(-0.5, 11.0 / 16.0, -0.5), m_position + glm::dvec3(0.5, 2.0, 0.5)), nullptr,
                                        &m_compoundChest);
     }
 
@@ -388,7 +389,15 @@ void Minecart::MoveAlongTrack()
                     }
                 }
 
-                speed *= m_passengers.empty() ? 0.96 : 0.997;
+                if (m_container)
+                {
+                    speed *= 0.98f + (15 - m_container->GetRedstoneSignal()) * 0.001f;
+                }
+                else
+                {
+                    speed *= m_passengers.empty() ? 0.975 : 0.997;
+                }
+
                 if (IsInWater())
                 {
                     speed *= 0.95;
